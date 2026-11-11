@@ -9,7 +9,7 @@
 class FakeSdService final : public ISdService {
 public:
     bool configureResult = true;
-    const char* lastError = "";
+    const char* lastError = "Mount failed. Check config and wiring and try again.";
     const char* getLastError() const override { return lastError; }
     bool sdState = true;
     uint32_t configureCalls = 0;

@@ -39,6 +39,7 @@ bool SdService::configure(uint8_t clkPin, uint8_t misoPin, uint8_t mosiPin, uint
 
     if (!SD.begin(csPin, *spi)) {
         end();
+        lastError = "Mount failed. Check config and wiring and try again.";
         return false;
     }
 

@@ -700,7 +700,7 @@ void UartController::handleXmodemSend(const std::string& path) {
     //Check SD mounted
     if (!sdMounted) {
         const char* error = sdService.getLastError();
-        terminalView.println(std::string("UART XMODEM: ") + (*error ? error : "No SD card detected. Check SPI GPIOs"));
+        terminalView.println(std::string("UART XMODEM: ") + (*error ? error : "Mount failed. Check config and wiring and try again."));
         return;
     }
 
@@ -746,7 +746,7 @@ void UartController::handleXmodemReceive(const std::string& path) {
     //Check SD mounted
     if (!sdMounted) {
         const char* error = sdService.getLastError();
-        terminalView.println(std::string("UART XMODEM: ") + (*error ? error : "No SD card detected. Check SPI GPIOs"));
+        terminalView.println(std::string("UART XMODEM: ") + (*error ? error : "Mount failed. Check config and wiring and try again."));
         return;
     }
 

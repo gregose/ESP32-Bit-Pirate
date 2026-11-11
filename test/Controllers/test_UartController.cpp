@@ -471,6 +471,17 @@ void test_xmodem_failed_mount_reports_service_reason_for_both_directions() {
     }
 }
 
+void test_xmodem_mount_failure_does_not_claim_missing_card() {
+    UartControllerFixture fixture;
+    fixture.sdService.configureResult = false;
+    fixture.terminalInput.queueLine("");
+    fixture.terminalInput.queueLine("");
+    fixture.terminalInput.queueLine("");
+    fixture.controller.handleCommand(TerminalCommand("xmodem", "send", "/test.bin"));
+    TEST_ASSERT_TRUE(fixture.view.contains("UART XMODEM: Mount failed."));
+    TEST_ASSERT_FALSE(fixture.view.contains("No SD card detected"));
+}
+
 void test_unknown_command_displays_uart_help() {
     UartControllerFixture fixture;
 
@@ -508,6 +519,7 @@ void runUartControllerTests() {
     RUN_TEST(test_xmodem_reports_usage_errors_before_touching_sd);
     RUN_TEST(test_xmodem_routes_external_sd_and_unmounts_on_missing_file);
     RUN_TEST(test_xmodem_failed_mount_reports_service_reason_for_both_directions);
+    RUN_TEST(test_xmodem_mount_failure_does_not_claim_missing_card);
     RUN_TEST(test_glitch_reports_not_implemented);
     RUN_TEST(test_unknown_command_displays_uart_help);
 }

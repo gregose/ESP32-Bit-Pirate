@@ -60,7 +60,8 @@ void test_storage_uses_sdcard_pins_and_reports_success_or_failure() {
     UsbS3ControllerFixture failure;
     failure.controller.handleCommand(TerminalCommand("storage"));
 
-    TEST_ASSERT_TRUE(failure.view.contains("USB Stick configuration failed"));
+    TEST_ASSERT_TRUE(failure.view.contains("USB Stick configuration failed. SD card mount failed."));
+    TEST_ASSERT_FALSE(failure.view.contains("No SD card detected"));
 }
 
 void test_keyboard_send_configures_hid_and_sends_decoded_text() {

@@ -412,7 +412,7 @@ void UsbS3Controller::handleUsbStick() {
         terminalView.println("\n ✅ USB Stick configured. Mounting drive... (Can take up to 30 sec)\n");
     } else {
         const char* error = usbService.getStorageError();
-        terminalView.println(std::string("\n ❌ USB Stick configuration failed. ") + (*error ? error : "No SD card detected.") + "\n");
+        terminalView.println(std::string("\n ❌ USB Stick configuration failed. ") + (*error ? error : "SD card mount failed. Check card and wiring.") + "\n");
     }
 }
 

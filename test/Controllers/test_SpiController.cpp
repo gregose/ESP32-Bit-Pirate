@@ -301,7 +301,8 @@ void test_sdcard_mount_failure_restores_spi_and_control_pins() {
     TEST_ASSERT_EQUAL_UINT32(1, fixture.spiService.configurations.size());
     TEST_ASSERT_EQUAL_UINT8(10, fixture.spiService.configurations.back().wp);
     TEST_ASSERT_EQUAL_UINT8(11, fixture.spiService.configurations.back().hold);
-    TEST_ASSERT_TRUE(fixture.view.contains("SD Card: Mount failed."));
+    TEST_ASSERT_TRUE(fixture.view.contains("SD Card: Mount failed. Check config and wiring and try again."));
+    TEST_ASSERT_FALSE(fixture.view.contains("Mount failed. Mount failed"));
 }
 
 void test_unknown_command_displays_spi_help() {

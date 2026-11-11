@@ -208,6 +208,7 @@ void UsbS3Service::storageBegin(uint8_t cs, uint8_t clk, uint8_t miso, uint8_t m
     if (!SD.begin(cs, sdSPI)) {
         sdSPI.end();
         storageActive = false;
+        storageError = "SD card mount failed. Check card and wiring.";
         return;
     }
 

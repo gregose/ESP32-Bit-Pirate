@@ -20,7 +20,7 @@ void TBeamSupremeBoard::initialize() {
     XPowersAXP2101 pmu;
     if (!Wire1.begin(42, 41, 100000) ||
         !pmu.begin(Wire1, AXP2101_SLAVE_ADDRESS, 42, 41)) {
-        Serial.println("T-Beam Supreme: PMU not found. OLED, LoRa and SD disabled.");
+        Serial.println("T-Beam Supreme: PMU setup failed. OLED, LoRa and SD disabled.");
         return;
     }
     const auto power = TBeamSupreme::configurePower(pmu);

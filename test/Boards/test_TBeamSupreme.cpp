@@ -279,7 +279,7 @@ void test_sd_remounts_external_bus_and_cleans_failed_mounts() {
     service.end();
     SD.mountResult = false;
     TEST_ASSERT_FALSE(service.configure(36, 37, 35, 47));
-    TEST_ASSERT_EQUAL_STRING("", service.getLastError());
+    TEST_ASSERT_EQUAL_STRING("Mount failed. Check config and wiring and try again.", service.getLastError());
     TEST_ASSERT_FALSE(service.getSdState());
     TEST_ASSERT_FALSE(TBeamSupreme::sdMounted);
     SD.mountResult = true;
