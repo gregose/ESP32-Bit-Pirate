@@ -3,6 +3,32 @@
 #include <cctype>
 #include <map>
 #include <sstream>
+#ifdef DEVICE_TBEAM_SUPREME_S3
+#include "Boards/TBeamSupreme/TBeamSupremeConfig.h"
+#endif
+
+namespace {
+uint8_t uartRxPin(const GlobalState& state) {
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    if (TBeamSupreme::gnssSelected) return TBeamSupreme::gnssRxPin;
+#endif
+    return state.getUartRxPin();
+}
+
+uint8_t uartTxPin(const GlobalState& state) {
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    if (TBeamSupreme::gnssSelected) return TBeamSupreme::gnssTxPin;
+#endif
+    return state.getUartTxPin();
+}
+
+bool isProtectedUartPin(const GlobalState& state, uint8_t pin) {
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    if (TBeamSupreme::gnssSelected && TBeamSupreme::isGnssUartPin(pin)) return false;
+#endif
+    return state.isPinProtected(pin);
+}
+}
 
 /*
 Constructor
@@ -63,7 +89,23 @@ void UartController::handleCommand(const TerminalCommand& cmd) {
     else if (cmd.getRoot() == "sniff") handleSniff(cmd);
     else if (cmd.getRoot() == "snifftxt") handleSniffTxt();
     else if (cmd.getRoot() == "sniffraw") handleSniffRaw();
-    else if (cmd.getRoot() == "config") handleConfig();
+    else if (cmd.getRoot() == "config") {
+#ifdef DEVICE_TBEAM_SUPREME_S3
+        if (cmd.getSubcommand() == "gnss") {
+            if (!configureOnboardGnss()) {
+                if (!TBeamSupreme::gnssPowered && releaseOnboardGnss()) {
+                    uartService.configure(state.getUartBaudRate(), state.getUartConfig(),
+                                          state.getUartRxPin(), state.getUartTxPin(),
+                                          state.isUartInverted());
+                }
+            }
+        } else {
+            handleConfig();
+        }
+#else
+        handleConfig();
+#endif
+    }
     else handleHelp();
 }
 
@@ -797,6 +839,10 @@ Config
 void UartController::handleConfig() {
     terminalView.println("UART Configuration:");
 
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    if (!releaseOnboardGnss()) return;
+#endif
+
     auto forbidden = state.getProtectedPins();
 
     uint8_t rxPin = userInputManager.readValidatedPinNumber("RX GPIO number", state.getUartRxPin(), forbidden);
@@ -831,6 +877,67 @@ void UartController::handleConfig() {
     terminalView.println("");
 }
 
+#ifdef DEVICE_TBEAM_SUPREME_S3
+/*
+Onboard GNSS
+*/
+bool UartController::configureOnboardGnss() {
+    uartService.end();
+    if (!TBeamSupreme::setGnssEnabled(true)) {
+        TBeamSupreme::gnssSelected = false;
+        terminalView.println("❌ UART onboard GNSS setup failed.");
+        terminalView.println("Onboard GNSS power unavailable.\n");
+        if (TBeamSupreme::gnssPowered) {
+            terminalView.println("Onboard GNSS power could not be disabled. GPIO 8/9 remain reserved.\n");
+        }
+        return false;
+    }
+
+    const uint32_t defaultBaud = TBeamSupreme::gnssSelected ? state.getUartBaudRate()
+                                                            : TBeamSupreme::gnssDefaultBaud;
+    uint32_t baud = userInputManager.readValidatedUint32("Baud rate", defaultBaud);
+    TBeamSupreme::gnssSelected = true;
+
+    state.setUartBaudRate(baud);
+    state.setUartDataBits(8);
+    state.setUartParity("N");
+    state.setUartStopBits(1);
+    state.setUartInverted(false);
+    uint32_t config = uartService.buildUartConfig(8, 'N', 1);
+    state.setUartConfig(config);
+    uartService.configure(baud, config, TBeamSupreme::gnssRxPin, TBeamSupreme::gnssTxPin, false);
+
+    terminalView.println("UART: using onboard GNSS (RX " + std::to_string(TBeamSupreme::gnssRxPin) +
+                         ", TX " + std::to_string(TBeamSupreme::gnssTxPin) + ", 8N1).");
+    terminalView.println("UART configured.");
+    terminalView.println("");
+    return true;
+}
+
+bool UartController::releaseOnboardGnss() {
+    if (TBeamSupreme::gnssPowered) {
+        uartService.end();
+        if (!TBeamSupreme::setGnssEnabled(false)) {
+            terminalView.println("Onboard GNSS power could not be disabled. GPIO 8/9 remain reserved.\n");
+            return false;
+        }
+    }
+    TBeamSupreme::gnssSelected = false;
+    // Fall back to the external UART defaults instead of the fixed GNSS pins
+    if (TBeamSupreme::isGnssUartPin(state.getUartRxPin()) ||
+        TBeamSupreme::isGnssUartPin(state.getUartTxPin())) {
+#if defined(UART_RX_PIN) && defined(UART_TX_PIN)
+        state.setUartRxPin(UART_RX_PIN);
+        state.setUartTxPin(UART_TX_PIN);
+#else
+        state.setUartRxPin(44);
+        state.setUartTxPin(43);
+#endif
+    }
+    return true;
+}
+#endif
+
 /*
 Help
 */
@@ -850,6 +957,12 @@ void UartController::handleGlitch() {
 Swap pins
 */
 void UartController::handleSwap() {
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    if (TBeamSupreme::gnssSelected) {
+        terminalView.println("UART Swap: Onboard GNSS pins are fixed.");
+        return;
+    }
+#endif
     uint8_t rx = state.getUartRxPin();
     uint8_t tx = state.getUartTxPin();
 
@@ -877,6 +990,12 @@ void UartController::handleSwap() {
 Emulation
 */
 void UartController::handleEmulation() {
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    if (TBeamSupreme::gnssSelected) {
+        terminalView.println("UART Emulator: Not available with onboard GNSS.");
+        return;
+    }
+#endif
     uartEmulationShell.run();
 }
 
@@ -1049,15 +1168,15 @@ void UartController::handleSniffRaw() {
     const uint32_t config = state.getUartConfig();
     const bool inverted = state.isUartInverted();
 
-    const uint8_t rxPin1 = state.getUartRxPin();
-    const uint8_t rxPin2 = state.getUartTxPin();
+    const uint8_t rxPin1 = uartRxPin(state);
+    const uint8_t rxPin2 = uartTxPin(state);
 
     if (rxPin1 == rxPin2) {
         terminalView.println("UART Sniff: RX and TX pins are identical.");
         return;
     }
 
-    if (state.isPinProtected(rxPin1) || state.isPinProtected(rxPin2)) {
+    if (isProtectedUartPin(state, rxPin1) || isProtectedUartPin(state, rxPin2)) {
         terminalView.println("UART Sniff: protected pin.");
         return;
     }
@@ -1080,15 +1199,15 @@ void UartController::handleSniffTxt() {
     const uint32_t config = state.getUartConfig();
     const bool inverted = state.isUartInverted();
 
-    const uint8_t rxPin1 = state.getUartRxPin();
-    const uint8_t rxPin2 = state.getUartTxPin();
+    const uint8_t rxPin1 = uartRxPin(state);
+    const uint8_t rxPin2 = uartTxPin(state);
 
     if (rxPin1 == rxPin2) {
         terminalView.println("UART Sniff: RX and TX pins are identical.");
         return;
     }
 
-    if (state.isPinProtected(rxPin1) || state.isPinProtected(rxPin2)) {
+    if (isProtectedUartPin(state, rxPin1) || isProtectedUartPin(state, rxPin2)) {
         terminalView.println("UART Sniff: protected pin.");
         return;
     }
@@ -1115,16 +1234,47 @@ void UartController::ensureConfigured() {
         return;
     }
 
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    if (TBeamSupreme::gnssSelected) {
+        if (!TBeamSupreme::gnssPowered && !TBeamSupreme::setGnssEnabled(true)) {
+            TBeamSupreme::gnssSelected = false;
+            terminalView.println("❌ UART onboard GNSS setup failed.");
+            terminalView.println("Onboard GNSS power unavailable.\n");
+            if (TBeamSupreme::gnssPowered) {
+                terminalView.println("Onboard GNSS power could not be disabled. GPIO 8/9 remain reserved.\n");
+            }
+            return;
+        }
+        pinMode(TBeamSupreme::gnssWakePin, OUTPUT);
+        digitalWrite(TBeamSupreme::gnssWakePin, HIGH);
+    }
+#endif
+
     // User could have set the same pin to a different usage
     // eg. select UART, then select I2C, then select UART
     // Always reconfigure pins before use
     uartService.end();
 
-    uint8_t rx = state.getUartRxPin();
-    uint8_t tx = state.getUartTxPin();
+    uint8_t rx = uartRxPin(state);
+    uint8_t tx = uartTxPin(state);
     uint32_t baud = state.getUartBaudRate();
     uint32_t config = state.getUartConfig();
     bool inverted = state.isUartInverted();
 
     uartService.configure(baud, config, rx, tx, inverted);
+}
+
+/*
+Ensure Released
+*/
+void UartController::ensureReleased() {
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    // Power the onboard GNSS down while another mode is active
+    if (TBeamSupreme::gnssPowered) {
+        uartService.end();
+        if (!TBeamSupreme::setGnssEnabled(false)) {
+            terminalView.println("Onboard GNSS power could not be disabled. GPIO 8/9 remain reserved.\n");
+        }
+    }
+#endif
 }

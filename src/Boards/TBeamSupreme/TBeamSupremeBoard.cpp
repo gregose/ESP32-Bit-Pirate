@@ -5,6 +5,46 @@
 #include <Wire.h>
 #include <XPowersLib.h>
 
+namespace {
+XPowersAXP2101 pmu;
+bool pmuReady = false;
+
+// I2C slave mode borrows Wire1, so restore the PMU bus before each rail change.
+bool pmuBusReady() {
+    if (!pmuReady) return false;
+    Wire1.setTimeOut(50);
+    return Wire1.begin(42, 41, 100000);
+}
+}
+
+bool TBeamSupreme::setGnssEnabled(bool on) {
+    if (!on) {
+        // Release the lines first so an unpowered receiver is not back-fed.
+        pinMode(gnssWakePin, INPUT);
+        pinMode(gnssTxPin, INPUT);
+        const bool off = pmuBusReady() && setGnssPower(pmu, false);
+        gnssPowered = !off;
+        if (!off) {
+            pinMode(gnssWakePin, OUTPUT);
+            digitalWrite(gnssWakePin, HIGH);
+        }
+        return off;
+    }
+    if (!pmuBusReady() || !setGnssPower(pmu, true)) {
+        const bool off = pmuBusReady() && setGnssPower(pmu, false);
+        gnssPowered = !off;
+        if (gnssPowered) {
+            pinMode(gnssWakePin, OUTPUT);
+            digitalWrite(gnssWakePin, HIGH);
+        }
+        return false;
+    }
+    pinMode(gnssWakePin, OUTPUT);
+    digitalWrite(gnssWakePin, HIGH);
+    gnssPowered = true;
+    return true;
+}
+
 void TBeamSupremeBoard::initialize() {
     Serial.begin(115200);
     // Both SPI slaves on the SD/IMU network must be deselected before clocking.
@@ -16,14 +56,16 @@ void TBeamSupremeBoard::initialize() {
     TBeamSupreme::radioReady = false;
     TBeamSupreme::displayReady = false;
     TBeamSupreme::sdReady = false;
+    TBeamSupreme::gnssPowered = false;
+    pmuReady = false;
     Wire1.setTimeOut(50);
-    XPowersAXP2101 pmu;
     if (!Wire1.begin(42, 41, 100000) ||
         !pmu.begin(Wire1, AXP2101_SLAVE_ADDRESS, 42, 41)) {
         Serial.println("T-Beam Supreme: PMU setup failed. OLED, LoRa and SD disabled.");
         return;
     }
     const auto power = TBeamSupreme::configurePower(pmu);
+    pmuReady = power.unusedRailsOff;
     TBeamSupreme::radioReady = power.radio;
     TBeamSupreme::sdReady = power.sd;
     TBeamSupreme::displayReady = power.display;

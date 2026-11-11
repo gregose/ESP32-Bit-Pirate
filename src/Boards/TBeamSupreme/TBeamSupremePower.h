@@ -34,4 +34,17 @@ PowerStatus configurePower(Pmu& pmu) {
     if (!status.display) pmu.disableALDO1();
     return status;
 }
+
+// GNSS rail (ALDO4) is enabled only while the onboard GNSS is in use.
+template <typename Pmu>
+bool setGnssPower(Pmu& pmu, bool on) {
+    if (!on) return pmu.disableALDO4() && !pmu.isEnableALDO4();
+    const bool enabled = pmu.setALDO4Voltage(3300) && pmu.getALDO4Voltage() == 3300 &&
+        pmu.enableALDO4() && pmu.isEnableALDO4();
+    if (!enabled) {
+        pmu.disableALDO4();
+        return false;
+    }
+    return enabled;
+}
 }

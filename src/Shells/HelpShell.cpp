@@ -167,6 +167,9 @@ void HelpShell::cmdUart() {
         "['Hello'] [r:64]...  - Instruction syntax"
     };
     printLines(lines, (int)(sizeof(lines) / sizeof(lines[0])));
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    terminalView.println("config gnss           - Use onboard GNSS UART");
+#endif
 }
 
 void HelpShell::cmdHdUart() {

@@ -18,7 +18,23 @@ constexpr bool isRadioPins(uint8_t clk, uint8_t miso, uint8_t mosi,
            rst == 5 && busy == 4 && dio1 == 1;
 }
 
+// Onboard GNSS (L76K or MAX-M10S) on a fixed UART; NMEA at 9600 8N1 by default.
+constexpr uint8_t gnssRxPin = 9;
+constexpr uint8_t gnssTxPin = 8;
+constexpr uint8_t gnssWakePin = 7;
+constexpr uint32_t gnssDefaultBaud = 9600;
+
+constexpr bool isGnssUartPin(int pin) {
+    return pin == gnssRxPin || pin == gnssTxPin;
+}
+
 #ifdef DEVICE_TBEAM_SUPREME_S3
+inline bool gnssSelected = false;
+inline bool gnssPowered = false;
+
+// Switches the GNSS rail and wake line; false if power could not be confirmed.
+bool setGnssEnabled(bool on);
+
 inline bool radioReady = false;
 inline bool displayReady = false;
 inline bool sdReady = false;
