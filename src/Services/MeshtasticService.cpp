@@ -52,7 +52,7 @@ bool MeshtasticService::profileFor(const std::string& name, float frequency,
         out.syncWord = 0x24B4;
         out.crc = true;
         out.invertIq = false;
-        out.tcxoVoltage = 1.8f;
+        out.tcxoVoltage = LoRaDefaults::tcxoVoltage;
         return true;
     }
     return false;

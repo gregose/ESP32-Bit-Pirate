@@ -12,6 +12,8 @@
 #include "Boards/Common/Views/St7789ParallelDeviceView.h"
 #elif defined(CUSTOM_DISPLAY_DRIVER_ILI9341_SPI)
 #include "Boards/Common/Views/Ili9341SpiDeviceView.h"
+#elif defined(CUSTOM_DISPLAY_DRIVER_SH1106_SW_I2C)
+#include "Boards/Common/Views/Sh1106DeviceView.h"
 #else
 #include "Boards/Common/Views/NoScreenDeviceView.h"
 #endif
@@ -39,6 +41,8 @@ private:
     static Ili9341SpiConfig createDisplayConfig();
     Ili9341SpiConfig displayConfig;
     Ili9341SpiDeviceView deviceView;
+#elif defined(CUSTOM_DISPLAY_DRIVER_SH1106_SW_I2C)
+    Sh1106DeviceView deviceView;
 #else
     NoScreenDeviceView deviceView;
 #endif

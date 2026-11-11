@@ -55,18 +55,26 @@ Ensure the LoRa radio is configured before use
 */
 void LoRaController::ensureConfigured() {
     if (configured && loRaService.isInitialized()) return;
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    if (!TBeamSupreme::radioReady) {
+        terminalView.println("LoRa: onboard ALDO3/PMU unavailable; radio disabled.");
+        return;
+    }
+#endif
 
     terminalView.println("\n[LoRa pin configuration]");
     configurePins();
 
+#ifndef DEVICE_TBEAM_SUPREME_S3
     resetDefaultRadioProfile();
-    terminalView.println("\n[LoRa default profile]");
+#endif
+    terminalView.println("\n[LoRa profile]");
     printCurrentProfile();
 
     if (userInputManager.readYesNo("Configure radio settings?", false)) {
         configureRadioProfile();
     } else {
-        terminalView.println("LoRa: using the default radio profile.");
+        terminalView.println("LoRa: using the displayed radio profile.");
     }
 
     configured = loRaService.configure(deviceView.getSharedSpiInstance(), state.getLoRaSckPin(),
@@ -76,7 +84,9 @@ void LoRaController::ensureConfigured() {
     if (!configured) {
         terminalView.println("❌ LoRa SX1262 setup failed.");
         const int16_t error = loRaService.getLastError();
-        if (error == -90) {
+        if (error == -92) {
+            terminalView.println("Onboard PMU/radio unavailable or unsafe fixed wiring/TCXO configuration.");
+        } else if (error == -90) {
             terminalView.println("BUSY stayed high.");
         } else if (error == -91) {
             terminalView.println("No valid radio response.");
@@ -103,17 +113,23 @@ void LoRaController::ensureReleased() {
 Configure the LoRa pins and radio profile
 */
 void LoRaController::handleConfig() {
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    if (!TBeamSupreme::radioReady) {
+        terminalView.println("LoRa: onboard ALDO3/PMU unavailable; radio disabled.");
+        return;
+    }
+#endif
     terminalView.println("\n[LoRa pin configuration]");
     configurePins();
 
     resetDefaultRadioProfile();
-    terminalView.println("\n[LoRa default profile]");
+    terminalView.println("\n[LoRa profile]");
     printCurrentProfile();
 
     if (userInputManager.readYesNo("Configure radio settings?", false)) {
         configureRadioProfile();
     } else {
-        terminalView.println("LoRa: using the default radio profile.");
+        terminalView.println("LoRa: using the displayed radio profile.");
     }
 
     ensureReleased();
@@ -124,7 +140,9 @@ void LoRaController::handleConfig() {
     if (!configured) {
         terminalView.println("❌ LoRa SX1262 setup failed.");
         const int16_t error = loRaService.getLastError();
-        if (error == -90) {
+        if (error == -92) {
+            terminalView.println("Onboard PMU/radio unavailable or unsafe fixed wiring/TCXO configuration.");
+        } else if (error == -90) {
             terminalView.println("BUSY stayed high.");
         } else if (error == -91) {
             terminalView.println("No valid radio response.");
@@ -1310,6 +1328,10 @@ bool LoRaController::mountLittleFs() {
 Configure the SX1262 pins
 */
 void LoRaController::configurePins() {
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    terminalView.println("Using fixed onboard SX1262 wiring.");
+    return;
+#endif
     auto forbidden = state.getProtectedPins();
     auto readPin = [&](const char* label, uint8_t current) {
         const uint8_t pin = userInputManager.readValidatedPinNumber(label, current, forbidden);
@@ -1355,6 +1377,10 @@ void LoRaController::configureRadioProfile() {
     state.setLoRaCrc(userInputManager.readYesNo("Enable CRC?", state.getLoRaCrc()));
     state.setLoRaInvertIq(userInputManager.readYesNo("Invert IQ?", state.getLoRaInvertIq()));
 
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    state.setLoRaTcxoVoltage(LoRaDefaults::tcxoVoltage);
+    terminalView.println("Onboard SX1262 TCXO fixed at 1.6 V.");
+#else
     const std::vector<float> tcxoVoltages = {0.0f, 1.6f, 1.7f, 1.8f, 2.2f, 2.4f, 2.7f, 3.0f, 3.3f};
     int tcxoIndex = 0;
     float bestDistance = std::numeric_limits<float>::max();
@@ -1368,13 +1394,14 @@ void LoRaController::configureRadioProfile() {
     const int selectedTcxo = userInputManager.readValidatedChoiceIndex(
         "TCXO voltage (0 = XTAL):", tcxoVoltages, tcxoIndex);
     state.setLoRaTcxoVoltage(tcxoVoltages[selectedTcxo]);
+#endif
 }
 
 /*
 Reset the LoRa radio profile to default values
 */
 void LoRaController::resetDefaultRadioProfile() {
-    state.setLoRaFrequency(868.0f);
+    state.setLoRaFrequency(LoRaDefaults::frequency);
     state.setLoRaBandwidth(125);
     state.setLoRaSpreadingFactor(9);
     state.setLoRaCodingRate(7);
@@ -1383,7 +1410,7 @@ void LoRaController::resetDefaultRadioProfile() {
     state.setLoRaSyncWord(0x1424);
     state.setLoRaCrc(true);
     state.setLoRaInvertIq(false);
-    state.setLoRaTcxoVoltage(1.8f);
+    state.setLoRaTcxoVoltage(LoRaDefaults::tcxoVoltage);
 }
 
 /*

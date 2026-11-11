@@ -424,12 +424,51 @@ void test_xmodem_reports_usage_errors_before_touching_sd() {
     TEST_ASSERT_TRUE(missingPath.view.contains("Error: missing path argument"));
 }
 
+void test_xmodem_routes_external_sd_and_unmounts_on_missing_file() {
+    UartControllerFixture fixture;
+    auto& state = GlobalState::getInstance();
+    state.setSpiCLKPin(38);
+    state.setSpiMISOPin(39);
+    state.setSpiMOSIPin(48);
+    state.setSpiCSPin(2);
+    fixture.terminalInput.queueLine("");
+    fixture.terminalInput.queueLine("");
+    fixture.terminalInput.queueLine("");
+
+    fixture.controller.handleCommand(TerminalCommand("xmodem", "send", "/missing.bin"));
+
+    TEST_ASSERT_EQUAL(1, fixture.sdService.configureCalls);
+    TEST_ASSERT_EQUAL(38, fixture.sdService.lastClk);
+    TEST_ASSERT_EQUAL(39, fixture.sdService.lastMiso);
+    TEST_ASSERT_EQUAL(48, fixture.sdService.lastMosi);
+    TEST_ASSERT_EQUAL(2, fixture.sdService.lastCs);
+    TEST_ASSERT_EQUAL(1, fixture.sdService.endCalls);
+    TEST_ASSERT_TRUE(fixture.view.contains("Could not open file"));
+}
+
 void test_glitch_reports_not_implemented() {
     UartControllerFixture fixture;
 
     fixture.controller.handleCommand(TerminalCommand("glitch"));
 
     TEST_ASSERT_TRUE(fixture.view.contains("Uart Glicher: Not Yet Implemented"));
+}
+
+void test_xmodem_failed_mount_reports_service_reason_for_both_directions() {
+    for (const char* action : {"send", "recv"}) {
+        UartControllerFixture fixture;
+        fixture.sdService.configureResult = false;
+        fixture.sdService.lastError = "USB mass storage owns the card; reset before filesystem access.";
+        fixture.terminalInput.queueLine("");
+        fixture.terminalInput.queueLine("");
+        fixture.terminalInput.queueLine("");
+        fixture.controller.handleCommand(TerminalCommand("xmodem", action, "/test.bin"));
+        TEST_ASSERT_TRUE(fixture.view.contains(fixture.sdService.lastError));
+        TEST_ASSERT_EQUAL(1, fixture.sdService.configureCalls);
+        TEST_ASSERT_TRUE(fixture.sdService.lastWritePath.empty());
+        TEST_ASSERT_FALSE(fixture.view.contains("UART XMODEM: Sending..."));
+        TEST_ASSERT_FALSE(fixture.view.contains("UART XMODEM: Receiving..."));
+    }
 }
 
 void test_unknown_command_displays_uart_help() {
@@ -467,6 +506,8 @@ void runUartControllerTests() {
     RUN_TEST(test_sniff_rejects_identical_pins_without_running_sniffer);
     RUN_TEST(test_ping_reports_detected_ascii_response);
     RUN_TEST(test_xmodem_reports_usage_errors_before_touching_sd);
+    RUN_TEST(test_xmodem_routes_external_sd_and_unmounts_on_missing_file);
+    RUN_TEST(test_xmodem_failed_mount_reports_service_reason_for_both_directions);
     RUN_TEST(test_glitch_reports_not_implemented);
     RUN_TEST(test_unknown_command_displays_uart_help);
 }

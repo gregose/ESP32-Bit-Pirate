@@ -9,17 +9,24 @@
 class FakeSdService final : public ISdService {
 public:
     bool configureResult = true;
+    const char* lastError = "SD mount failed; check card, wiring and filesystem.";
+    const char* getLastError() const override { return lastError; }
     bool sdState = true;
     uint32_t configureCalls = 0;
     uint32_t endCalls = 0;
+    uint8_t lastClk = 0, lastMiso = 0, lastMosi = 0, lastCs = 0;
     std::string lastReadPath;
     std::string lastWritePath;
     std::vector<std::string> deletedFiles;
     std::map<std::string, std::vector<uint8_t>> binaryFiles;
     std::map<std::string, std::string> textFiles;
 
-    bool configure(uint8_t, uint8_t, uint8_t, uint8_t) override {
+    bool configure(uint8_t clk, uint8_t miso, uint8_t mosi, uint8_t cs) override {
         ++configureCalls;
+        lastClk = clk;
+        lastMiso = miso;
+        lastMosi = mosi;
+        lastCs = cs;
         return configureResult;
     }
 

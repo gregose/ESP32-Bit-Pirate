@@ -313,6 +313,20 @@ void test_unknown_command_displays_spi_help() {
     TEST_ASSERT_TRUE(fixture.view.contains("SPI"));
 }
 
+void test_sdcard_failures_report_service_reason_to_terminal() {
+    for (const char* reason : {"Onboard BLDO1/PMU unavailable.",
+                              "USB mass storage owns the card; reset before filesystem access.",
+                              "Reserved onboard wiring cannot be remapped."}) {
+        SpiControllerFixture fixture;
+        fixture.sdService.configureResult = false;
+        fixture.sdService.lastError = reason;
+        fixture.controller.handleCommand(TerminalCommand("sdcard"));
+        TEST_ASSERT_TRUE(fixture.view.contains(reason));
+        TEST_ASSERT_EQUAL(0, fixture.sdCardShell.runCalls);
+        TEST_ASSERT_EQUAL(1, fixture.sdService.configureCalls);
+    }
+}
+
 }  // namespace spi_controller_tests
 
 void runSpiControllerTests() {
@@ -329,5 +343,6 @@ void runSpiControllerTests() {
     RUN_TEST(test_flash_and_eeprom_delegate_to_shells);
     RUN_TEST(test_sdcard_mount_runs_shell_then_restores_spi);
     RUN_TEST(test_sdcard_mount_failure_restores_spi_and_control_pins);
+    RUN_TEST(test_sdcard_failures_report_service_reason_to_terminal);
     RUN_TEST(test_unknown_command_displays_spi_help);
 }

@@ -3,7 +3,11 @@
 #include <string>
 #include <vector>
 
+#ifdef TBEAM_TEST_STANDALONE
+#include "../Boards/fakes/SPI.h"
+#else
 class SPIClass {};
+#endif
 
 #include "Interfaces/IDeviceView.h"
 

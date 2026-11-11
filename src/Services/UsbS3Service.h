@@ -37,6 +37,7 @@ public:
 
     // Mass Storage mode
     void storageBegin(uint8_t cs, uint8_t clk, uint8_t miso, uint8_t mosi);
+    const char* getStorageError() const override { return storageError; }
 
     // Mouse actions
     void mouseBegin();
@@ -79,6 +80,7 @@ private:
     // Mass Storage
     SPIClass sdSPI;
     bool storageActive;
+    const char* storageError = "";
     static int32_t storageReadCallback(uint32_t lba, uint32_t offset, void* buffer, uint32_t bufsize);
     static int32_t storageWriteCallback(uint32_t lba, uint32_t offset, uint8_t* buffer, uint32_t bufsize);
     static bool usbStartStopCallback(uint8_t power_condition, bool start, bool load_eject);

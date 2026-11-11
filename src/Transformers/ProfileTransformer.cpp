@@ -163,6 +163,41 @@ bool ProfileTransformer::fromProfileText(
     auto& gs = GlobalState::getInstance();
     const auto kv = parse(text);
 
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    // Validate before applying any field: imported profiles bypass interactive GPIO prompts.
+    const char* externalPinKeys[] = {
+        "spi.cs", "spi.clk", "spi.miso", "spi.mosi", "i2c.sda", "i2c.scl",
+        "uart.rx", "uart.tx", "ir.tx", "ir.rx", "led.data", "led.clock",
+        "hduart.pin", "i2s.bclk", "i2s.lrck", "i2s.data", "can.cs",
+        "can.sck", "can.si", "can.so", "subghz.sck", "subghz.miso",
+        "subghz.mosi", "subghz.cs", "subghz.gdo", "rf24.csn", "rf24.ce",
+        "rf24.sck", "rf24.miso", "rf24.mosi", "rfid.sda", "rfid.scl",
+        "eth.cs", "eth.clk", "eth.miso", "eth.mosi", "eth.irq",
+        "fm.sda", "fm.scl", "fm.rst", "cell.rx", "cell.tx"
+    };
+    for (const char* key : externalPinKeys) {
+        const auto field = kv.find(key);
+        if (field == kv.end()) continue;
+        uint8_t pin;
+        if (!parseU8(field->second, pin) || !TBeamSupreme::isExternalPin(pin)) {
+            error = std::string("Reserved or invalid T-Beam Supreme GPIO: ") + key;
+            return false;
+        }
+    }
+    const std::pair<const char*, uint8_t> sdPins[] = {
+        {"sd.cs", 47}, {"sd.clk", 36}, {"sd.miso", 37}, {"sd.mosi", 35}
+    };
+    for (const auto& field : sdPins) {
+        const auto value = kv.find(field.first);
+        if (value == kv.end()) continue;
+        uint8_t pin;
+        if (!parseU8(value->second, pin) || pin != field.second) {
+            error = std::string("Fixed internal SD wiring cannot be changed: ") + field.first;
+            return false;
+        }
+    }
+#endif
+
     // local
     std::string v;
     uint8_t  u8  = 0;

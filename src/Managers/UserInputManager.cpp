@@ -1,4 +1,7 @@
 #include "UserInputManager.h"
+#ifdef DEVICE_TBEAM_SUPREME_S3
+#include "Boards/TBeamSupreme/TBeamSupremeConfig.h"
+#endif
 
 std::string UserInputManager::getLine(bool onlyNumber /* = false */) {
     std::string result;
@@ -423,6 +426,12 @@ uint8_t UserInputManager::readModeNumber() {
 uint8_t UserInputManager::readValidatedPinNumber(const std::string& label, uint8_t def, uint8_t min, uint8_t max, const std::vector<uint8_t>& forbiddenPins) {
     while (true) {
         int val = readValidatedUint8(label, def, min, max);
+#ifdef DEVICE_TBEAM_SUPREME_S3
+        if (!TBeamSupreme::isExternalPin(val)) {
+            terminalView.println("This GPIO is reserved for onboard T-Beam Supreme hardware.");
+            continue;
+        }
+#endif
         if (std::find(forbiddenPins.begin(), forbiddenPins.end(), val) != forbiddenPins.end()) {
             terminalView.println("This GPIO is reserved/protected and cannot be used.");
             continue;
@@ -456,6 +465,14 @@ std::vector<uint8_t> UserInputManager::readValidatedPinGroup(
 
         // Empty, we keep default pins
         if (input.empty()) {
+#ifdef DEVICE_TBEAM_SUPREME_S3
+            if (std::any_of(defaultPins.begin(), defaultPins.end(), [](uint8_t pin) {
+                    return !TBeamSupreme::isExternalPin(pin);
+                })) {
+                terminalView.println("Default GPIOs include reserved onboard hardware; enter external GPIOs.");
+                continue;
+            }
+#endif
             return defaultPins;
         }
 
@@ -473,6 +490,13 @@ std::vector<uint8_t> UserInputManager::readValidatedPinGroup(
                 break;
             }
             // Protected
+#ifdef DEVICE_TBEAM_SUPREME_S3
+            if (!TBeamSupreme::isExternalPin(val)) {
+                terminalView.println("GPIO is reserved for onboard T-Beam Supreme hardware.");
+                valid = false;
+                break;
+            }
+#endif
             if (std::find(protectedPins.begin(), protectedPins.end(), val) != protectedPins.end()) {
                 terminalView.println("GPIO " + std::to_string(val) + " is protected/reserved.");
                 valid = false;

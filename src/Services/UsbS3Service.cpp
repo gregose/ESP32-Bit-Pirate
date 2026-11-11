@@ -6,6 +6,9 @@
 #include "freertos/task.h"
 #include "hal/clk_gate_ll.h"
 #include "soc/periph_defs.h"
+#ifdef DEVICE_TBEAM_SUPREME_S3
+#include "Boards/TBeamSupreme/TBeamSupremeConfig.h"
+#endif
 
 extern "C" esp_err_t deinit_usb_hal();
 
@@ -20,7 +23,11 @@ namespace {
 }
 
 UsbS3Service::UsbS3Service()
-  : keyboardActive(false), storageActive(false), initialized(false) {}
+  : keyboardActive(false),
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    sdSPI(HSPI),
+#endif
+    storageActive(false), initialized(false) {}
 
 void UsbS3Service::configure(const char* productStr, const char* manufacturerStr, const char* serialStr, uint16_t vid, uint16_t pid, const char* webUSBString) {
     USB.productName(productStr);
@@ -177,11 +184,31 @@ bool UsbS3Service::isHostActive() const {
 
 
 void UsbS3Service::storageBegin(uint8_t cs, uint8_t clk, uint8_t miso, uint8_t mosi) {
-    if (initialized) return;
+    storageError = "";
+    if (initialized) {
+        if (!storageActive) storageError = "USB is already configured for another function; reset first.";
+        return;
+    }
 
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    if (!TBeamSupreme::sdReady) {
+        storageError = "Onboard BLDO1/PMU unavailable.";
+        return;
+    }
+    if (TBeamSupreme::sdMounted || TBeamSupreme::usbStorageActive) {
+        storageError = "The SD card is already owned by a filesystem or USB session; reset first.";
+        return;
+    }
+    if (!TBeamSupreme::isSdPins(clk, miso, mosi, cs)) {
+        storageError = "Invalid internal SD wiring; use the fixed onboard pins.";
+        return;
+    }
+#endif
     sdSPI.begin(clk, miso, mosi, cs);
     if (!SD.begin(cs, sdSPI)) {
+        sdSPI.end();
         storageActive = false;
+        storageError = "SD mount failed; check card, wiring and filesystem.";
         return;
     }
 
@@ -203,6 +230,9 @@ void UsbS3Service::storageBegin(uint8_t cs, uint8_t clk, uint8_t miso, uint8_t m
 
     USB.begin();
     storageActive = true;
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    TBeamSupreme::usbStorageActive = true;
+#endif
     initialized = true;
 }
 
