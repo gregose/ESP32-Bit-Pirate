@@ -1,5 +1,8 @@
 #pragma once
 #include "Models/LoRaRadioProfile.h"
+#ifdef DEVICE_TBEAM_SUPREME_S3
+#include "Boards/TBeamSupreme/TBeamSupremeConfig.h"
+#endif
 
 #include <cstdint>
 #include <string>
@@ -154,8 +157,8 @@ private:
     // LoRa SX1262 Default Configuration
     uint8_t loRaSckPin = 5, loRaMisoPin = 6, loRaMosiPin = 7, loRaCsPin = 4;
     uint8_t loRaRstPin = 3, loRaBusyPin = 2, loRaDio1Pin = 1;
-    float loRaFrequency = 868.0f;
-    float loRaTcxoVoltage = 1.8f;
+    float loRaFrequency = LoRaDefaults::frequency;
+    float loRaTcxoVoltage = LoRaDefaults::tcxoVoltage;
     uint16_t loRaBandwidth = 125;
     uint8_t loRaSpreadingFactor = 9;
     uint8_t loRaCodingRate = 7;
@@ -507,6 +510,9 @@ public:
     }
 
     bool isPinProtected(uint8_t pin) const {
+#ifdef DEVICE_TBEAM_SUPREME_S3
+        if (!TBeamSupreme::isExternalPin(pin)) return true;
+#endif
         return std::find(protectedPins.begin(), protectedPins.end(), pin) != protectedPins.end();
     }
 

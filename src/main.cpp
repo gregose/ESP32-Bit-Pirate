@@ -19,6 +19,7 @@
 #include <Boards/TEmbed/TEmbedBoard.h>
 #include <Boards/VisionMasterT190/VisionMasterT190Board.h>
 #include <Boards/Custom/CustomBoard.h>
+#include <Boards/TBeamSupreme/TBeamSupremeBoard.h>
 #include <Boards/Common/Serial/BoardHostSerial.h>
 #include <Providers/DependencyProvider.h>
 #include <Dispatchers/ActionDispatcher.h>
@@ -146,6 +147,12 @@ void setup() {
         IHostSerial& hostSerial = board.getHostSerial();
     #elif defined(DEVICE_UMPROS3)
         UMProS3Board board;
+        board.initialize();
+        IDeviceView& deviceView = board.getDeviceView();
+        IInput& deviceInput = board.getDeviceInput();
+        IHostSerial& hostSerial = board.getHostSerial();
+    #elif defined(DEVICE_TBEAM_SUPREME_S3)
+        TBeamSupremeBoard board;
         board.initialize();
         IDeviceView& deviceView = board.getDeviceView();
         IInput& deviceInput = board.getDeviceInput();

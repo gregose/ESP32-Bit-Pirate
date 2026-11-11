@@ -16,6 +16,7 @@ public:
     virtual ~ISdService() = default;
 
     virtual bool configure(uint8_t clkPin, uint8_t misoPin, uint8_t mosiPin, uint8_t csPin) = 0;
+    virtual const char* getLastError() const = 0;
     virtual void end() = 0;
     virtual bool isFile(const std::string& filePath) = 0;
     virtual bool isDirectory(const std::string& path) = 0;

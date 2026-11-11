@@ -200,7 +200,8 @@ void SpiController::handleSdCard() {
     );
 
     if (!success) {
-        terminalView.println("SD Card: Mount failed. Check config and wiring and try again.\n");
+        const char* error = sdService.getLastError();
+        terminalView.println(std::string("SD Card: ") + (*error ? error : "Mount failed. Check config and wiring and try again.") + "\n");
         sdService.end();
         spiService.configure(state.getSpiMOSIPin(), state.getSpiMISOPin(), state.getSpiCLKPin(),
                              state.getSpiCSPin(), state.getSpiFrequency(), state.getSpiWPPin(), state.getSpiHOLDPin());

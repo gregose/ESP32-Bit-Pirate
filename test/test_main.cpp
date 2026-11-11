@@ -113,6 +113,7 @@
 #include "Controllers/test_UsbS3Controller.cpp"
 #include "Controllers/test_UartController.cpp"
 #include "Controllers/test_UtilityController.cpp"
+#include "Boards/test_TBeamSupreme.cpp"
 
 void setUp() {
     test_state::resetGlobalState();
@@ -178,5 +179,6 @@ int main(int, char**) {
     runUsbS3ControllerTests();
     runUartControllerTests();
     runUtilityControllerTests();
+    runTBeamSupremeTests();
     return UNITY_END();
 }

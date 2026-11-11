@@ -60,7 +60,8 @@ void test_storage_uses_sdcard_pins_and_reports_success_or_failure() {
     UsbS3ControllerFixture failure;
     failure.controller.handleCommand(TerminalCommand("storage"));
 
-    TEST_ASSERT_TRUE(failure.view.contains("USB Stick configuration failed"));
+    TEST_ASSERT_TRUE(failure.view.contains("USB Stick configuration failed. SD card mount failed."));
+    TEST_ASSERT_FALSE(failure.view.contains("No SD card detected"));
 }
 
 void test_keyboard_send_configures_hid_and_sends_decoded_text() {
@@ -73,6 +74,19 @@ void test_keyboard_send_configures_hid_and_sends_decoded_text() {
     TEST_ASSERT_EQUAL_UINT32(1, fixture.usb.keyboardStrings.size());
     TEST_ASSERT_EQUAL_STRING("hello\nworld", fixture.usb.keyboardStrings[0].c_str());
     TEST_ASSERT_TRUE(fixture.view.contains("USB Keyboard: String sent"));
+}
+
+void test_storage_failures_report_service_reason_without_claiming_missing_card() {
+    for (const char* reason : {"Onboard SD power unavailable.",
+                              "SD card already in use. Reset first.",
+                              "SD card GPIOs are fixed on this board."}) {
+        UsbS3ControllerFixture fixture;
+        fixture.usb.storageError = reason;
+        fixture.controller.handleCommand(TerminalCommand("stick"));
+        TEST_ASSERT_TRUE(fixture.view.contains(reason));
+        TEST_ASSERT_FALSE(fixture.view.contains("No SD card detected"));
+        TEST_ASSERT_FALSE(fixture.view.contains("USB Stick configured"));
+    }
 }
 
 void test_mouse_move_and_click_delegate_to_usb_service() {
@@ -202,6 +216,7 @@ void test_adapter_reset_config_and_help_paths() {
 void runUsbS3ControllerTests() {
     using namespace usb_s3_controller_tests;
     RUN_TEST(test_storage_uses_sdcard_pins_and_reports_success_or_failure);
+    RUN_TEST(test_storage_failures_report_service_reason_without_claiming_missing_card);
     RUN_TEST(test_keyboard_send_configures_hid_and_sends_decoded_text);
     RUN_TEST(test_mouse_move_and_click_delegate_to_usb_service);
     RUN_TEST(test_mouse_rejects_invalid_move_arguments);

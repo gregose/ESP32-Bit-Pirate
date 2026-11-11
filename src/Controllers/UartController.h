@@ -88,6 +88,7 @@ private:
 
     // Xmodem cmd handler
     void handleXmodem(const TerminalCommand& cmd);
+    bool mountXmodemSd();
 
     // Receive file from xmodem
     void handleXmodemReceive(const std::string& path);

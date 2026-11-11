@@ -214,6 +214,58 @@ bool BootModeConfigurator::configure() {
     }
     nvsService.close();
 
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    const auto external = [](std::initializer_list<int> pins) {
+        return std::all_of(pins.begin(), pins.end(), [](int pin) {
+            return TBeamSupreme::isExternalPin(pin);
+        });
+    };
+    bool safe = true;
+    switch (mode) {
+        case OneShotBootMode::UsbUartBridge:
+            safe = external({usbUartBridgeConfig.uartRxPin, usbUartBridgeConfig.uartTxPin});
+            break;
+        case OneShotBootMode::FlashromSerprog:
+            safe = external({flashromSerprogConfig.csPin, flashromSerprogConfig.sckPin,
+                             flashromSerprogConfig.misoPin, flashromSerprogConfig.mosiPin}) &&
+                (flashromSerprogConfig.wpPin < 0 || external({flashromSerprogConfig.wpPin})) &&
+                (flashromSerprogConfig.holdPin < 0 || external({flashromSerprogConfig.holdPin}));
+            break;
+        case OneShotBootMode::AvrDudeBusPirate:
+            safe = external({busPirateAvrdudeConfig.csPin, busPirateAvrdudeConfig.sckPin,
+                             busPirateAvrdudeConfig.misoPin, busPirateAvrdudeConfig.mosiPin});
+            break;
+        case OneShotBootMode::SumpLogicAnalyzer:
+            for (uint8_t i = 0; i < sumpLogicAnalyzerConfig.channelCount; ++i) {
+                safe = safe && external({sumpLogicAnalyzerConfig.pins[i]});
+            }
+            break;
+        case OneShotBootMode::OpenOcdBusPirate:
+            safe = external({openOcdBusPirateConfig.tckPin, openOcdBusPirateConfig.tmsPin,
+                             openOcdBusPirateConfig.tdiPin, openOcdBusPirateConfig.tdoPin,
+                             openOcdBusPirateConfig.swclkPin, openOcdBusPirateConfig.swdioPin});
+            break;
+        case OneShotBootMode::InfraredToy:
+            safe = external({infraredToyConfig.txPin, infraredToyConfig.rxPin});
+            break;
+        case OneShotBootMode::SubGhzRawCdc:
+            safe = external({subGhzRawCdcConfig.sckPin, subGhzRawCdcConfig.misoPin,
+                             subGhzRawCdcConfig.mosiPin, subGhzRawCdcConfig.csPin,
+                             subGhzRawCdcConfig.gdo0Pin});
+            break;
+        case OneShotBootMode::Bpio2:
+            safe = false;
+            break;
+        default:
+            break;
+    }
+    if (!safe) {
+        hostSerial.begin(115200);
+        hostSerial.println("T-Beam Supreme: Saved adapter uses protected GPIOs. Starting CLI.");
+        return false;
+    }
+#endif
+
     // The consumed mode must agree with the heap ownership chosen before board initialization.
     ESP_ERROR_CHECK(BootMemoryManager::validateBootMode(mode));
 

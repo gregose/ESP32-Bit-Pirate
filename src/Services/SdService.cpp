@@ -1,26 +1,70 @@
 #include "SdService.h"
+#ifdef DEVICE_TBEAM_SUPREME_S3
+#include "Boards/TBeamSupreme/TBeamSupremeConfig.h"
+#endif
 
 SdService::SdService() {}
 
 bool SdService::configure(uint8_t clkPin, uint8_t misoPin, uint8_t mosiPin, uint8_t csPin) {
-    if (sdCardMounted) return true;
-
-    SPI.begin(clkPin, misoPin, mosiPin, csPin);
+    lastError = "";
+    SPIClass* selectedSpi = &SPI;
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    if (TBeamSupreme::usbStorageActive) {
+        lastError = "SD card in use by USB Stick. Reset first.";
+        return false;
+    }
+    if (TBeamSupreme::isSdPins(clkPin, misoPin, mosiPin, csPin)) {
+        if (!TBeamSupreme::sdReady) {
+            lastError = "Onboard SD power unavailable.";
+            return false;
+        }
+        static SPIClass internalSdSpi(HSPI);
+        selectedSpi = &internalSdSpi;
+    } else if (!TBeamSupreme::isExternalPin(clkPin) || !TBeamSupreme::isExternalPin(misoPin) ||
+               !TBeamSupreme::isExternalPin(mosiPin) || !TBeamSupreme::isExternalPin(csPin)) {
+        lastError = "SD card GPIOs are fixed on this board.";
+        return false;
+    }
+#endif
+    if (sdCardMounted && clkPin == mountedClk && misoPin == mountedMiso &&
+        mosiPin == mountedMosi && csPin == mountedCs) return true;
+    end();
+    spi = selectedSpi;
+    mountedClk = clkPin;
+    mountedMiso = misoPin;
+    mountedMosi = mosiPin;
+    mountedCs = csPin;
+    spi->begin(clkPin, misoPin, mosiPin, csPin);
     delay(10);
 
-    if (!SD.begin(csPin, SPI)) {
-        sdCardMounted = false;
+    if (!SD.begin(csPin, *spi)) {
+        end();
+        lastError = "Mount failed. Check config and wiring and try again.";
         return false;
     }
 
     sdCardMounted = true;
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    TBeamSupreme::sdMounted = true;
+#endif
     return sdCardMounted;
 }
 
 void SdService::end() {
-    SD.end();
-    SPI.end();
+    if (spi) {
+        SD.end();
+        spi->end();
+#ifdef DEVICE_TBEAM_SUPREME_S3
+        pinMode(mountedCs, OUTPUT);
+        digitalWrite(mountedCs, HIGH);
+#endif
+        spi = nullptr;
+    }
     sdCardMounted = false;
+    cachedDirectoryElements.clear();
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    TBeamSupreme::sdMounted = false;
+#endif
 }
 
 bool SdService::isFile(const std::string& filePath) {

@@ -64,6 +64,7 @@ The custom profile currently supports these display drivers:
 CUSTOM_DISPLAY_DRIVER_ST7789_SPI
 CUSTOM_DISPLAY_DRIVER_ST7789_PARALLEL
 CUSTOM_DISPLAY_DRIVER_ILI9341_SPI
+CUSTOM_DISPLAY_DRIVER_SH1106_SW_I2C
 ```
 
 Only one display driver should be enabled.

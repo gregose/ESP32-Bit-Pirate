@@ -4,6 +4,9 @@
 #include <cstring>
 #include <limits>
 #include <new>
+#ifdef DEVICE_TBEAM_SUPREME_S3
+#include "Boards/TBeamSupreme/TBeamSupremeConfig.h"
+#endif
 
 LoRaService* LoRaService::instance_ = nullptr;
 
@@ -122,7 +125,12 @@ void LoRaService::releaseRadioPins() {
     pinMode(sckPin_, INPUT);
     pinMode(misoPin_, INPUT);
     pinMode(mosiPin_, INPUT);
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    digitalWrite(csPin_, HIGH);
+    pinMode(csPin_, OUTPUT);
+#else
     pinMode(csPin_, INPUT);
+#endif
     pinMode(rstPin_, INPUT);
     pinMode(busyPin_, INPUT);
     pinMode(dio1Pin_, INPUT);
@@ -141,6 +149,14 @@ bool LoRaService::configure(SPIClass& spi, uint8_t sck, uint8_t miso, uint8_t mo
                             const LoRaRadioProfile& profile) {
     deinitRfModule();
 
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    if (!TBeamSupreme::radioReady ||
+        !TBeamSupreme::isRadioPins(sck, miso, mosi, cs, rst, busy, dio1) ||
+        profile.tcxoVoltage != LoRaDefaults::tcxoVoltage) {
+        lastError_ = -92;
+        return false;
+    }
+#endif
     spi_ = &spi;
     sckPin_ = sck;
     misoPin_ = miso;

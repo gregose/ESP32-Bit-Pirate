@@ -22,6 +22,7 @@ public:
                                            unsigned long delayBetweenChunks) = 0;
 
     virtual void storageBegin(uint8_t cs, uint8_t clk, uint8_t miso, uint8_t mosi) = 0;
+    virtual const char* getStorageError() const = 0;
 
     virtual void mouseBegin() = 0;
     virtual void mouseMove(int x, int y) = 0;

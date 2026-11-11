@@ -8,8 +8,8 @@
 // This file maps simple PlatformIO build flags to the generic board layer.
 // Users should normally edit platformio.ini only.
 
-#if defined(CUSTOM_DISPLAY_DRIVER_ST7789_SPI) && defined(CUSTOM_DISPLAY_DRIVER_ST7789_PARALLEL)
-  #error "Select only one custom display driver: ST7789_SPI or ST7789_PARALLEL"
+#if (defined(CUSTOM_DISPLAY_DRIVER_ST7789_SPI) + defined(CUSTOM_DISPLAY_DRIVER_ST7789_PARALLEL) + defined(CUSTOM_DISPLAY_DRIVER_ILI9341_SPI) + defined(CUSTOM_DISPLAY_DRIVER_SH1106_SW_I2C)) > 1
+  #error "Select only one CUSTOM_DISPLAY_DRIVER"
 #endif
 
 #ifndef CUSTOM_INPUT_BUTTON_PIN
@@ -35,6 +35,25 @@
 // -----------------------------------------------------------------------------
 // Shared display options
 // -----------------------------------------------------------------------------
+#ifndef CUSTOM_DISPLAY_I2C_SDA
+  #define CUSTOM_DISPLAY_I2C_SDA 255
+#endif
+#ifndef CUSTOM_DISPLAY_I2C_SCL
+  #define CUSTOM_DISPLAY_I2C_SCL 255
+#endif
+#ifndef CUSTOM_DISPLAY_I2C_ADDRESS
+  #define CUSTOM_DISPLAY_I2C_ADDRESS 0
+#endif
+
+#ifdef CUSTOM_DISPLAY_DRIVER_SH1106_SW_I2C
+static_assert(CUSTOM_DISPLAY_I2C_SDA >= 0 && CUSTOM_DISPLAY_I2C_SDA <= 48 &&
+              CUSTOM_DISPLAY_I2C_SCL >= 0 && CUSTOM_DISPLAY_I2C_SCL <= 48 &&
+              CUSTOM_DISPLAY_I2C_SDA != CUSTOM_DISPLAY_I2C_SCL,
+              "Configure distinct CUSTOM_DISPLAY_I2C_SDA/SCL GPIOs");
+static_assert(CUSTOM_DISPLAY_I2C_ADDRESS == 0 || CUSTOM_DISPLAY_I2C_ADDRESS == 0x3C ||
+              CUSTOM_DISPLAY_I2C_ADDRESS == 0x3D, "SH1106 address must be 0, 0x3C or 0x3D");
+#endif
+
 #ifndef CUSTOM_DISPLAY_PANEL_WIDTH
   #define CUSTOM_DISPLAY_PANEL_WIDTH 170
 #endif

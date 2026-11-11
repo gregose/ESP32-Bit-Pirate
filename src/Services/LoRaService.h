@@ -125,7 +125,7 @@ private:
     int8_t power_ = 14;
     uint16_t preambleLength_ = 8;
     uint16_t syncWord_ = 0x1424;
-    float tcxoVoltage_ = 1.8f;
+    float tcxoVoltage_ = LoRaDefaults::tcxoVoltage;
     bool crc_ = true;
     bool invertIq_ = false;
     bool initialized_ = false;

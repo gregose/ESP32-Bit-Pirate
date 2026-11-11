@@ -70,7 +70,7 @@ private:
 
     std::string presetName_ = "LONG_FAST";
     std::string channelName_ = "LongFast";
-    float frequency_ = 868.0f;
+    float frequency_ = LoRaDefaults::frequency;
     uint32_t nodeNumber_ = 0;
     uint32_t nextPacketId_ = 0;
     LoRaRadioProfile profile_{};

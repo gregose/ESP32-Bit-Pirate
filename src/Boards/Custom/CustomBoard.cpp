@@ -130,6 +130,12 @@ CustomBoard::CustomBoard()
     : displayConfig(createDisplayConfig()),
       deviceView(displayConfig) {}
 
+#elif defined(CUSTOM_DISPLAY_DRIVER_SH1106_SW_I2C)
+
+CustomBoard::CustomBoard()
+    : deviceView(Sh1106Config{CUSTOM_DISPLAY_I2C_SDA, CUSTOM_DISPLAY_I2C_SCL,
+                              CUSTOM_DISPLAY_I2C_ADDRESS, true, false, CUSTOM_DISPLAY_ROTATION}) {}
+
 #else
 
 CustomBoard::CustomBoard() = default;
@@ -145,7 +151,7 @@ void CustomBoard::initialize()
 
     deviceView.initialize();
 
-#if defined(CUSTOM_DISPLAY_DRIVER_ST7789_SPI) || defined(CUSTOM_DISPLAY_DRIVER_ST7789_PARALLEL) || defined(CUSTOM_DISPLAY_DRIVER_ILI9341_SPI)
+#if defined(CUSTOM_DISPLAY_DRIVER_ST7789_SPI) || defined(CUSTOM_DISPLAY_DRIVER_ST7789_PARALLEL) || defined(CUSTOM_DISPLAY_DRIVER_ILI9341_SPI) || defined(CUSTOM_DISPLAY_DRIVER_SH1106_SW_I2C)
     deviceView.logo();
     delay(900);
     deviceView.clear();

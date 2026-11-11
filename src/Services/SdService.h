@@ -11,11 +11,15 @@
 class SdService : public ISdService {
 private:
     bool sdCardMounted = false;
+    SPIClass* spi = nullptr;
+    const char* lastError = "";
+    uint8_t mountedClk = 0, mountedMiso = 0, mountedMosi = 0, mountedCs = 0;
     std::unordered_map<std::string, std::vector<std::string>> cachedDirectoryElements;
 public:
     SdService();
 
     bool configure(uint8_t clkPin, uint8_t misoPin, uint8_t mosiPin, uint8_t csPin);
+    const char* getLastError() const override { return lastError; }
     void end();
     bool isFile(const std::string& filePath);
     bool isDirectory(const std::string& path);

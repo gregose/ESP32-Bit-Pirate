@@ -35,3 +35,26 @@ jobs:
 
       - name: Run PlatformIO native tests
         run: pio test -e native-tests
+
+      - name: Check T-Beam Supreme board-specific defaults and power policy
+        run: |
+          for FREQUENCY in 868.0f 915.0f; do
+            g++ -std=c++17 -DTBEAM_TEST_STANDALONE \
+              -DLORA_DEFAULT_FREQUENCY="${FREQUENCY}" \
+              -Isrc -Itest -Itest/Boards/fakes \
+              -I.pio/libdeps/native-tests/Unity/src \
+              test/Boards/test_TBeamSupreme.cpp \
+              .pio/libdeps/native-tests/Unity/src/unity.c \
+              -o "${RUNNER_TEMP}/tbeam-native-tests"
+            "${RUNNER_TEMP}/tbeam-native-tests"
+          done
+
+      - name: Check T-Beam OLED layout, failures and independent transport
+        run: |
+          g++ -std=c++17 -DTBEAM_OLED_TEST \
+            -Itest/Boards/oled_fakes -Itest/Boards/fakes -Isrc \
+            -I.pio/libdeps/native-tests/Unity/src \
+            test/Boards/test_TBeamOled.cpp \
+            .pio/libdeps/native-tests/Unity/src/unity.c \
+            -o "${RUNNER_TEMP}/tbeam-oled-tests"
+          "${RUNNER_TEMP}/tbeam-oled-tests"

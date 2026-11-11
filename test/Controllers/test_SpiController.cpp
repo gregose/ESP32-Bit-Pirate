@@ -301,7 +301,8 @@ void test_sdcard_mount_failure_restores_spi_and_control_pins() {
     TEST_ASSERT_EQUAL_UINT32(1, fixture.spiService.configurations.size());
     TEST_ASSERT_EQUAL_UINT8(10, fixture.spiService.configurations.back().wp);
     TEST_ASSERT_EQUAL_UINT8(11, fixture.spiService.configurations.back().hold);
-    TEST_ASSERT_TRUE(fixture.view.contains("SD Card: Mount failed."));
+    TEST_ASSERT_TRUE(fixture.view.contains("SD Card: Mount failed. Check config and wiring and try again."));
+    TEST_ASSERT_FALSE(fixture.view.contains("Mount failed. Mount failed"));
 }
 
 void test_unknown_command_displays_spi_help() {
@@ -311,6 +312,20 @@ void test_unknown_command_displays_spi_help() {
 
     TEST_ASSERT_TRUE(fixture.view.contains("Unknown command. Available SPI commands"));
     TEST_ASSERT_TRUE(fixture.view.contains("SPI"));
+}
+
+void test_sdcard_failures_report_service_reason_to_terminal() {
+    for (const char* reason : {"Onboard SD power unavailable.",
+                              "SD card in use by USB Stick. Reset first.",
+                              "SD card GPIOs are fixed on this board."}) {
+        SpiControllerFixture fixture;
+        fixture.sdService.configureResult = false;
+        fixture.sdService.lastError = reason;
+        fixture.controller.handleCommand(TerminalCommand("sdcard"));
+        TEST_ASSERT_TRUE(fixture.view.contains(reason));
+        TEST_ASSERT_EQUAL(0, fixture.sdCardShell.runCalls);
+        TEST_ASSERT_EQUAL(1, fixture.sdService.configureCalls);
+    }
 }
 
 }  // namespace spi_controller_tests
@@ -329,5 +344,6 @@ void runSpiControllerTests() {
     RUN_TEST(test_flash_and_eeprom_delegate_to_shells);
     RUN_TEST(test_sdcard_mount_runs_shell_then_restores_spi);
     RUN_TEST(test_sdcard_mount_failure_restores_spi_and_control_pins);
+    RUN_TEST(test_sdcard_failures_report_service_reason_to_terminal);
     RUN_TEST(test_unknown_command_displays_spi_help);
 }

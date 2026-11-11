@@ -684,14 +684,23 @@ void UartController::handleXmodem(const TerminalCommand& cmd) {
     }
 }
 
+bool UartController::mountXmodemSd() {
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    return sdService.configure(state.getSdCardClkPin(), state.getSdCardMisoPin(),
+                               state.getSdCardMosiPin(), state.getSdCardCsPin());
+#else
+    return sdService.configure(state.getSpiCLKPin(), state.getSpiMISOPin(),
+                               state.getSpiMOSIPin(), state.getSpiCSPin());
+#endif
+}
+
 void UartController::handleXmodemSend(const std::string& path) {
-    // Open SD with SPI pin
-    auto sdMounted = sdService.configure(state.getSpiCLKPin(), state.getSpiMISOPin(), 
-                    state.getSpiMOSIPin(), state.getSpiCSPin());
+    auto sdMounted = mountXmodemSd();
 
     //Check SD mounted
     if (!sdMounted) {
-        terminalView.println("UART XMODEM: No SD card detected. Check SPI GPIOs");
+        const char* error = sdService.getLastError();
+        terminalView.println(std::string("UART XMODEM: ") + (*error ? error : "Mount failed. Check config and wiring and try again."));
         return;
     }
 
@@ -699,6 +708,7 @@ void UartController::handleXmodemSend(const std::string& path) {
     File file = sdService.openFileRead(path);
     if (!file) {
         terminalView.println("UART XMODEM: Could not open file");
+        sdService.end();
         return;
     }
 
@@ -731,13 +741,12 @@ void UartController::handleXmodemSend(const std::string& path) {
 }
 
 void UartController::handleXmodemReceive(const std::string& path) {
-    // Open sd card with SPI pin
-    auto sdMounted = sdService.configure(state.getSpiCLKPin(), state.getSpiMISOPin(), 
-                    state.getSpiMOSIPin(), state.getSpiCSPin());
+    auto sdMounted = mountXmodemSd();
 
     //Check SD mounted
     if (!sdMounted) {
-        terminalView.println("UART XMODEM: No SD card detected. Check SPI GPIOs");
+        const char* error = sdService.getLastError();
+        terminalView.println(std::string("UART XMODEM: ") + (*error ? error : "Mount failed. Check config and wiring and try again."));
         return;
     }
 
@@ -745,6 +754,7 @@ void UartController::handleXmodemReceive(const std::string& path) {
     File file = sdService.openFileWrite(path);
     if (!file) {
         terminalView.println("UART XMODEM: Could not create file.");
+        sdService.end();
         return;
     }
 
