@@ -411,7 +411,8 @@ void UsbS3Controller::handleUsbStick() {
     if (usbService.isStorageActive()) {
         terminalView.println("\n ✅ USB Stick configured. Mounting drive... (Can take up to 30 sec)\n");
     } else {
-        terminalView.println(std::string("\n ❌ USB Stick configuration failed. ") + usbService.getStorageError() + "\n");
+        const char* error = usbService.getStorageError();
+        terminalView.println(std::string("\n ❌ USB Stick configuration failed. ") + (*error ? error : "No SD card detected.") + "\n");
     }
 }
 
@@ -422,7 +423,7 @@ void UsbS3Controller::handleConfig() {
     terminalView.println("USB Configuration:");
 
 #ifdef DEVICE_TBEAM_SUPREME_S3
-    terminalView.println("Internal SD wiring is fixed on T-Beam Supreme; it cannot be remapped.");
+    terminalView.println("SD card GPIOs are fixed on this board.\n");
     return;
 #endif
     auto confirm = userInputManager.readYesNo("Configure SD card GPIOs for USB?", false);

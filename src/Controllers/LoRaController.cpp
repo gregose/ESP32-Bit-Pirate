@@ -57,7 +57,8 @@ void LoRaController::ensureConfigured() {
     if (configured && loRaService.isInitialized()) return;
 #ifdef DEVICE_TBEAM_SUPREME_S3
     if (!TBeamSupreme::radioReady) {
-        terminalView.println("LoRa: onboard ALDO3/PMU unavailable; radio disabled.");
+        terminalView.println("❌ LoRa SX1262 setup failed.");
+        terminalView.println("Onboard radio power unavailable.\n");
         return;
     }
 #endif
@@ -65,16 +66,22 @@ void LoRaController::ensureConfigured() {
     terminalView.println("\n[LoRa pin configuration]");
     configurePins();
 
-#ifndef DEVICE_TBEAM_SUPREME_S3
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    terminalView.println("\n[LoRa current profile]");
+#else
     resetDefaultRadioProfile();
+    terminalView.println("\n[LoRa default profile]");
 #endif
-    terminalView.println("\n[LoRa profile]");
     printCurrentProfile();
 
     if (userInputManager.readYesNo("Configure radio settings?", false)) {
         configureRadioProfile();
     } else {
-        terminalView.println("LoRa: using the displayed radio profile.");
+#ifdef DEVICE_TBEAM_SUPREME_S3
+        terminalView.println("LoRa: using the current radio profile.");
+#else
+        terminalView.println("LoRa: using the default radio profile.");
+#endif
     }
 
     configured = loRaService.configure(deviceView.getSharedSpiInstance(), state.getLoRaSckPin(),
@@ -85,7 +92,7 @@ void LoRaController::ensureConfigured() {
         terminalView.println("❌ LoRa SX1262 setup failed.");
         const int16_t error = loRaService.getLastError();
         if (error == -92) {
-            terminalView.println("Onboard PMU/radio unavailable or unsafe fixed wiring/TCXO configuration.");
+            terminalView.println("Onboard radio power or wiring unavailable.");
         } else if (error == -90) {
             terminalView.println("BUSY stayed high.");
         } else if (error == -91) {
@@ -115,7 +122,8 @@ Configure the LoRa pins and radio profile
 void LoRaController::handleConfig() {
 #ifdef DEVICE_TBEAM_SUPREME_S3
     if (!TBeamSupreme::radioReady) {
-        terminalView.println("LoRa: onboard ALDO3/PMU unavailable; radio disabled.");
+        terminalView.println("❌ LoRa SX1262 setup failed.");
+        terminalView.println("Onboard radio power unavailable.\n");
         return;
     }
 #endif
@@ -123,13 +131,13 @@ void LoRaController::handleConfig() {
     configurePins();
 
     resetDefaultRadioProfile();
-    terminalView.println("\n[LoRa profile]");
+    terminalView.println("\n[LoRa default profile]");
     printCurrentProfile();
 
     if (userInputManager.readYesNo("Configure radio settings?", false)) {
         configureRadioProfile();
     } else {
-        terminalView.println("LoRa: using the displayed radio profile.");
+        terminalView.println("LoRa: using the default radio profile.");
     }
 
     ensureReleased();
@@ -141,7 +149,7 @@ void LoRaController::handleConfig() {
         terminalView.println("❌ LoRa SX1262 setup failed.");
         const int16_t error = loRaService.getLastError();
         if (error == -92) {
-            terminalView.println("Onboard PMU/radio unavailable or unsafe fixed wiring/TCXO configuration.");
+            terminalView.println("Onboard radio power or wiring unavailable.");
         } else if (error == -90) {
             terminalView.println("BUSY stayed high.");
         } else if (error == -91) {
@@ -1329,7 +1337,7 @@ Configure the SX1262 pins
 */
 void LoRaController::configurePins() {
 #ifdef DEVICE_TBEAM_SUPREME_S3
-    terminalView.println("Using fixed onboard SX1262 wiring.");
+    terminalView.println("LoRa: using onboard SX1262 pins.");
     return;
 #endif
     auto forbidden = state.getProtectedPins();
@@ -1379,7 +1387,7 @@ void LoRaController::configureRadioProfile() {
 
 #ifdef DEVICE_TBEAM_SUPREME_S3
     state.setLoRaTcxoVoltage(LoRaDefaults::tcxoVoltage);
-    terminalView.println("Onboard SX1262 TCXO fixed at 1.6 V.");
+    terminalView.println("LoRa: TCXO fixed at 1.6 V.");
 #else
     const std::vector<float> tcxoVoltages = {0.0f, 1.6f, 1.7f, 1.8f, 2.2f, 2.4f, 2.7f, 3.0f, 3.3f};
     int tcxoIndex = 0;

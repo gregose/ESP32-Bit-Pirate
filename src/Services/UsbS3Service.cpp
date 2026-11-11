@@ -186,21 +186,21 @@ bool UsbS3Service::isHostActive() const {
 void UsbS3Service::storageBegin(uint8_t cs, uint8_t clk, uint8_t miso, uint8_t mosi) {
     storageError = "";
     if (initialized) {
-        if (!storageActive) storageError = "USB is already configured for another function; reset first.";
+        if (!storageActive) storageError = "USB already in use. Reset first.";
         return;
     }
 
 #ifdef DEVICE_TBEAM_SUPREME_S3
     if (!TBeamSupreme::sdReady) {
-        storageError = "Onboard BLDO1/PMU unavailable.";
+        storageError = "Onboard SD power unavailable.";
         return;
     }
     if (TBeamSupreme::sdMounted || TBeamSupreme::usbStorageActive) {
-        storageError = "The SD card is already owned by a filesystem or USB session; reset first.";
+        storageError = "SD card already in use. Reset first.";
         return;
     }
     if (!TBeamSupreme::isSdPins(clk, miso, mosi, cs)) {
-        storageError = "Invalid internal SD wiring; use the fixed onboard pins.";
+        storageError = "SD card GPIOs are fixed on this board.";
         return;
     }
 #endif
@@ -208,7 +208,6 @@ void UsbS3Service::storageBegin(uint8_t cs, uint8_t clk, uint8_t miso, uint8_t m
     if (!SD.begin(cs, sdSPI)) {
         sdSPI.end();
         storageActive = false;
-        storageError = "SD mount failed; check card, wiring and filesystem.";
         return;
     }
 

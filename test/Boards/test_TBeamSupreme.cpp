@@ -249,7 +249,7 @@ void test_sd_requires_power_and_uses_separate_host() {
     TBeamSupreme::sdReady = false;
     const unsigned before = SD.beginCalls;
     TEST_ASSERT_FALSE(service.configure(36, 37, 35, 47));
-    TEST_ASSERT_TRUE(std::string(service.getLastError()).find("BLDO1/PMU") != std::string::npos);
+    TEST_ASSERT_TRUE(std::string(service.getLastError()).find("SD power") != std::string::npos);
     TEST_ASSERT_EQUAL(before, SD.beginCalls);
     TBeamSupreme::sdReady = true;
     TEST_ASSERT_TRUE(service.configure(36, 37, 35, 47));
@@ -279,7 +279,7 @@ void test_sd_remounts_external_bus_and_cleans_failed_mounts() {
     service.end();
     SD.mountResult = false;
     TEST_ASSERT_FALSE(service.configure(36, 37, 35, 47));
-    TEST_ASSERT_TRUE(std::string(service.getLastError()).find("mount failed") != std::string::npos);
+    TEST_ASSERT_EQUAL_STRING("", service.getLastError());
     TEST_ASSERT_FALSE(service.getSdState());
     TEST_ASSERT_FALSE(TBeamSupreme::sdMounted);
     SD.mountResult = true;
@@ -291,11 +291,11 @@ void test_sd_rejects_reserved_pins_and_usb_storage_ownership() {
     SdService service;
     const unsigned before = SD.beginCalls;
     TEST_ASSERT_FALSE(service.configure(41, 42, 48, 2));
-    TEST_ASSERT_TRUE(std::string(service.getLastError()).find("Reserved") != std::string::npos);
+    TEST_ASSERT_TRUE(std::string(service.getLastError()).find("fixed") != std::string::npos);
     TEST_ASSERT_EQUAL(before, SD.beginCalls);
     TBeamSupreme::usbStorageActive = true;
     TEST_ASSERT_FALSE(service.configure(36, 37, 35, 47));
-    TEST_ASSERT_TRUE(std::string(service.getLastError()).find("USB mass storage") != std::string::npos);
+    TEST_ASSERT_TRUE(std::string(service.getLastError()).find("USB Stick") != std::string::npos);
     TEST_ASSERT_FALSE(service.configure(38, 39, 48, 2));
     TEST_ASSERT_EQUAL(before, SD.beginCalls);
     TBeamSupreme::usbStorageActive = false;
@@ -322,7 +322,7 @@ void test_radio_reset_uses_selected_band_and_reentry_preserves_runtime_frequency
     TBeamSupreme::radioReady = false;
     fixture.controller.ensureConfigured();
     TEST_ASSERT_EQUAL(configured, fixture.service.configurations.size());
-    TEST_ASSERT_TRUE(fixture.view.contains("PMU unavailable"));
+    TEST_ASSERT_TRUE(fixture.view.contains("Onboard radio power unavailable."));
 }
 
 void test_uart_file_operations_route_to_internal_sd_on_this_board() {

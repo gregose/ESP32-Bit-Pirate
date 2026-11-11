@@ -261,7 +261,7 @@ bool BootModeConfigurator::configure() {
     }
     if (!safe) {
         hostSerial.begin(115200);
-        hostSerial.println("T-Beam Supreme: unsafe saved adapter GPIOs rejected; returning to CLI.");
+        hostSerial.println("T-Beam Supreme: Saved adapter uses protected GPIOs. Starting CLI.");
         return false;
     }
 #endif

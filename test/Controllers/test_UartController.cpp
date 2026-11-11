@@ -458,7 +458,7 @@ void test_xmodem_failed_mount_reports_service_reason_for_both_directions() {
     for (const char* action : {"send", "recv"}) {
         UartControllerFixture fixture;
         fixture.sdService.configureResult = false;
-        fixture.sdService.lastError = "USB mass storage owns the card; reset before filesystem access.";
+        fixture.sdService.lastError = "SD card in use by USB Stick. Reset first.";
         fixture.terminalInput.queueLine("");
         fixture.terminalInput.queueLine("");
         fixture.terminalInput.queueLine("");

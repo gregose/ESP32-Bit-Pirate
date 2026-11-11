@@ -428,7 +428,7 @@ uint8_t UserInputManager::readValidatedPinNumber(const std::string& label, uint8
         int val = readValidatedUint8(label, def, min, max);
 #ifdef DEVICE_TBEAM_SUPREME_S3
         if (!TBeamSupreme::isExternalPin(val)) {
-            terminalView.println("This GPIO is reserved for onboard T-Beam Supreme hardware.");
+            terminalView.println("This GPIO is reserved/protected and cannot be used.");
             continue;
         }
 #endif
@@ -469,7 +469,7 @@ std::vector<uint8_t> UserInputManager::readValidatedPinGroup(
             if (std::any_of(defaultPins.begin(), defaultPins.end(), [](uint8_t pin) {
                     return !TBeamSupreme::isExternalPin(pin);
                 })) {
-                terminalView.println("Default GPIOs include reserved onboard hardware; enter external GPIOs.");
+                terminalView.println("Default GPIOs are protected/reserved. Enter other GPIOs.");
                 continue;
             }
 #endif
@@ -492,7 +492,7 @@ std::vector<uint8_t> UserInputManager::readValidatedPinGroup(
             // Protected
 #ifdef DEVICE_TBEAM_SUPREME_S3
             if (!TBeamSupreme::isExternalPin(val)) {
-                terminalView.println("GPIO is reserved for onboard T-Beam Supreme hardware.");
+                terminalView.println("GPIO " + std::to_string(val) + " is protected/reserved.");
                 valid = false;
                 break;
             }

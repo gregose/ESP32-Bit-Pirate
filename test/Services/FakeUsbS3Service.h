@@ -32,7 +32,7 @@ public:
 
     bool keyboardActive = false;
     bool storageActive = false;
-    const char* storageError = "SD mount failed; check card, wiring and filesystem.";
+    const char* storageError = "";
     const char* getStorageError() const override { return storageError; }
     bool mouseActive = false;
     bool gamepadActive = false;

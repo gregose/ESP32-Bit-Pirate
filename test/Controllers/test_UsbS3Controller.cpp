@@ -76,9 +76,9 @@ void test_keyboard_send_configures_hid_and_sends_decoded_text() {
 }
 
 void test_storage_failures_report_service_reason_without_claiming_missing_card() {
-    for (const char* reason : {"Onboard BLDO1/PMU unavailable.",
-                              "The SD card is already owned by a filesystem or USB session; reset first.",
-                              "Invalid internal SD wiring; use the fixed onboard pins."}) {
+    for (const char* reason : {"Onboard SD power unavailable.",
+                              "SD card already in use. Reset first.",
+                              "SD card GPIOs are fixed on this board."}) {
         UsbS3ControllerFixture fixture;
         fixture.usb.storageError = reason;
         fixture.controller.handleCommand(TerminalCommand("stick"));

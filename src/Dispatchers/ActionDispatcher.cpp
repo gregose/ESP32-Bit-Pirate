@@ -291,7 +291,7 @@ Set Mode
 void ActionDispatcher::setCurrentMode(ModeEnum newMode) {
 #ifdef DEVICE_TBEAM_SUPREME_S3
     if (TBeamSupreme::usbStorageActive && newMode != ModeEnum::USB && newMode != ModeEnum::HIZ) {
-        provider.getTerminalView().println("USB storage owns the SD controller. Eject on the host and reset before changing hardware mode.");
+        provider.getTerminalView().println("USB Stick: SD card in use. Eject the drive and reset before changing mode.");
         return;
     }
 #endif

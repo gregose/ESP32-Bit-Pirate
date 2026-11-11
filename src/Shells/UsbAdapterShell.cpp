@@ -222,7 +222,7 @@ void UsbAdapterShell::rebootAvrDudeBusPirate() {
 
 void UsbAdapterShell::rebootBpio2() {
 #ifdef DEVICE_TBEAM_SUPREME_S3
-    terminalView.println("BPIO2 requires 8 unique GPIOs; this board exposes only 7 safe external GPIOs.");
+    terminalView.println("BPIO2: Not available, needs 8 free GPIOs (7 on this board).\n");
     return;
 #endif
     const auto forbidden = state.getProtectedPins();

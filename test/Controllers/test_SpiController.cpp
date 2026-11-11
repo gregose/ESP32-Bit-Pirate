@@ -314,9 +314,9 @@ void test_unknown_command_displays_spi_help() {
 }
 
 void test_sdcard_failures_report_service_reason_to_terminal() {
-    for (const char* reason : {"Onboard BLDO1/PMU unavailable.",
-                              "USB mass storage owns the card; reset before filesystem access.",
-                              "Reserved onboard wiring cannot be remapped."}) {
+    for (const char* reason : {"Onboard SD power unavailable.",
+                              "SD card in use by USB Stick. Reset first.",
+                              "SD card GPIOs are fixed on this board."}) {
         SpiControllerFixture fixture;
         fixture.sdService.configureResult = false;
         fixture.sdService.lastError = reason;

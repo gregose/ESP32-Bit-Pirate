@@ -9,7 +9,7 @@
 class FakeSdService final : public ISdService {
 public:
     bool configureResult = true;
-    const char* lastError = "SD mount failed; check card, wiring and filesystem.";
+    const char* lastError = "";
     const char* getLastError() const override { return lastError; }
     bool sdState = true;
     uint32_t configureCalls = 0;

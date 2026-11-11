@@ -180,7 +180,7 @@ bool ProfileTransformer::fromProfileText(
         if (field == kv.end()) continue;
         uint8_t pin;
         if (!parseU8(field->second, pin) || !TBeamSupreme::isExternalPin(pin)) {
-            error = std::string("Reserved or invalid T-Beam Supreme GPIO: ") + key;
+            error = std::string("Invalid ") + key + " (protected GPIO)";
             return false;
         }
     }
@@ -192,7 +192,7 @@ bool ProfileTransformer::fromProfileText(
         if (value == kv.end()) continue;
         uint8_t pin;
         if (!parseU8(value->second, pin) || pin != field.second) {
-            error = std::string("Fixed internal SD wiring cannot be changed: ") + field.first;
+            error = std::string("Invalid ") + field.first + " (fixed GPIO)";
             return false;
         }
     }

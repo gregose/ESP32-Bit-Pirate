@@ -10,19 +10,19 @@ bool SdService::configure(uint8_t clkPin, uint8_t misoPin, uint8_t mosiPin, uint
     SPIClass* selectedSpi = &SPI;
 #ifdef DEVICE_TBEAM_SUPREME_S3
     if (TBeamSupreme::usbStorageActive) {
-        lastError = "USB mass storage owns the card; reset before filesystem access.";
+        lastError = "SD card in use by USB Stick. Reset first.";
         return false;
     }
     if (TBeamSupreme::isSdPins(clkPin, misoPin, mosiPin, csPin)) {
         if (!TBeamSupreme::sdReady) {
-            lastError = "Onboard BLDO1/PMU unavailable.";
+            lastError = "Onboard SD power unavailable.";
             return false;
         }
         static SPIClass internalSdSpi(HSPI);
         selectedSpi = &internalSdSpi;
     } else if (!TBeamSupreme::isExternalPin(clkPin) || !TBeamSupreme::isExternalPin(misoPin) ||
                !TBeamSupreme::isExternalPin(mosiPin) || !TBeamSupreme::isExternalPin(csPin)) {
-        lastError = "Reserved onboard wiring cannot be remapped.";
+        lastError = "SD card GPIOs are fixed on this board.";
         return false;
     }
 #endif
@@ -39,7 +39,6 @@ bool SdService::configure(uint8_t clkPin, uint8_t misoPin, uint8_t mosiPin, uint
 
     if (!SD.begin(csPin, *spi)) {
         end();
-        lastError = "SD mount failed; check card, wiring and filesystem.";
         return false;
     }
 

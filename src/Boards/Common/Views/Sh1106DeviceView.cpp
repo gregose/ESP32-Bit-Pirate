@@ -39,12 +39,12 @@ void Sh1106DeviceView::initialize() {
     if (attempted) return;
     attempted = true;
     if (!config.powered) {
-        Serial.println("SH1106: display power unavailable; continuing without display.");
+        Serial.println("SH1106: Display power unavailable.");
         return;
     }
     if (config.sda > 48 || config.scl > 48 || config.sda == config.scl ||
         (config.address != 0 && config.address != 0x3C && config.address != 0x3D)) {
-        Serial.println("SH1106: invalid display pins/address; continuing without display.");
+        Serial.println("SH1106: Invalid display pins or address.");
         return;
     }
     for (uint8_t candidate : {0x3C, 0x3D}) {
@@ -60,29 +60,29 @@ void Sh1106DeviceView::initialize() {
                 const bool writable = bus.start(candidate);
                 const bool idle = bus.stop();
                 if (!writable || !idle) {
-                    Serial.println("SH1106: address check failed; continuing without display.");
+                    Serial.println("SH1106: Address check failed.");
                     return;
                 }
-                Serial.println("SH1106: candidate has no readable ID; visual confirmation required.");
+                Serial.println("SH1106: Display ID not readable.");
             }
             if (id == 0x80) {
-                Serial.println("SH1106: QMC6310 magnetometer excluded.");
+                Serial.println("SH1106: QMC6310 magnetometer skipped.");
                 continue;
             }
         }
         if (address != 0) {
-            Serial.println("SH1106: ambiguous addresses; configure display address 0x3C/0x3D.");
+            Serial.println("SH1106: Both 0x3C and 0x3D respond. Set the display address.");
             return;
         }
         address = candidate;
     }
     if (address == 0) {
-        Serial.println("SH1106: no display candidate; continuing with USB.");
+        Serial.println("SH1106: No display found.");
         return;
     }
     buffer.reset(new (std::nothrow) uint8_t[1024]{});
     if (!buffer) {
-        Serial.println("SH1106: framebuffer allocation failed; continuing without display.");
+        Serial.println("SH1106: Framebuffer allocation failed.");
         return;
     }
     u8g2_Setup_sh1106_i2c_128x64_noname_f(display.getU8g2(),
@@ -96,10 +96,10 @@ void Sh1106DeviceView::initialize() {
     ready = transferOk;
     if (!ready) {
         buffer.reset();
-        Serial.println("SH1106: configured address NACK/bus timeout; USB remains available.");
+        Serial.println("SH1106: No response at display address.");
         return;
     }
-    Serial.println("SH1106: writes acknowledged; confirm display visually (ACK is not identity).");
+    Serial.println("SH1106: Display ready.");
     setBrightness(brightness);
     logo();
 }
@@ -110,7 +110,7 @@ void Sh1106DeviceView::flush() {
     if (!transferOk) {
         ready = false;
         buffer.reset();
-        Serial.println("SH1106: transfer failed; display disabled until reboot, USB remains available.");
+        Serial.println("SH1106: Transfer failed. Display disabled.");
     }
 }
 
@@ -254,7 +254,7 @@ void Sh1106DeviceView::setBrightness(uint8_t value) {
     if (!transferOk) {
         ready = false;
         buffer.reset();
-        Serial.println("SH1106: contrast/power command failed; display disabled until reboot.");
+        Serial.println("SH1106: Contrast command failed. Display disabled.");
     }
 }
 #endif

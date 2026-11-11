@@ -20,7 +20,7 @@ void TBeamSupremeBoard::initialize() {
     XPowersAXP2101 pmu;
     if (!Wire1.begin(42, 41, 100000) ||
         !pmu.begin(Wire1, AXP2101_SLAVE_ADDRESS, 42, 41)) {
-        Serial.println("T-Beam Supreme: PMU unavailable; OLED, onboard LoRa and SD disabled.");
+        Serial.println("T-Beam Supreme: PMU not found. OLED, LoRa and SD disabled.");
         return;
     }
     const auto power = TBeamSupreme::configurePower(pmu);
@@ -29,13 +29,13 @@ void TBeamSupremeBoard::initialize() {
     TBeamSupreme::displayReady = power.display;
     deviceView.setPowerAvailable(power.display);
     if (!power.unusedRailsOff) {
-        Serial.println("T-Beam Supreme: unused rail shutdown failed; onboard LoRa and SD disabled.");
+        Serial.println("T-Beam Supreme: Rail setup failed. LoRa and SD disabled.");
     }
-    if (!power.radio) Serial.println("T-Beam Supreme: ALDO3 setup failed; onboard LoRa disabled.");
-    if (!power.sd) Serial.println("T-Beam Supreme: BLDO1 setup failed; onboard SD disabled.");
-    if (!power.display) Serial.println("T-Beam Supreme: ALDO1 setup failed; OLED disabled.");
+    if (!power.radio) Serial.println("T-Beam Supreme: LoRa power failed. LoRa disabled.");
+    if (!power.sd) Serial.println("T-Beam Supreme: SD power failed. SD disabled.");
+    if (!power.display) Serial.println("T-Beam Supreme: OLED power failed. OLED disabled.");
     delay(250);
-    Serial.printf("T-Beam Supreme H639: flash=%u, PSRAM=%u bytes; LoRa=%s, SD=%s\n",
+    Serial.printf("T-Beam Supreme: Flash %u bytes, PSRAM %u bytes, LoRa %s, SD %s\n",
                   ESP.getFlashChipSize(), ESP.getPsramSize(),
                   power.radio ? "ready" : "disabled", power.sd ? "ready" : "disabled");
     deviceView.initialize();
