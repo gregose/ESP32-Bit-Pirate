@@ -419,6 +419,11 @@ void ActionDispatcher::releaseMode(ModeEnum currentMode, ModeEnum newMode) {
         case ModeEnum::LORA:
             provider.getLoRaController().ensureReleased();
             break;
+#ifdef DEVICE_TBEAM_SUPREME_S3
+        case ModeEnum::UART:
+            provider.getUartController().ensureReleased();
+            break;
+#endif
 
         // For now, no realy heavy resources in other modes 
 

@@ -46,7 +46,16 @@ public:
     // Ensure UART is configured before use
     void ensureConfigured();
 
+    // Release board resources held by the UART mode
+    void ensureReleased();
+
 private:
+#ifdef DEVICE_TBEAM_SUPREME_S3
+    // Select or release the onboard GNSS UART
+    bool configureOnboardGnss();
+    bool releaseOnboardGnss();
+#endif
+
     // Start bidirectional UART bridge
     void handleBridge();
 

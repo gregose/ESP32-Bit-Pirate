@@ -4,6 +4,9 @@
 #define SDCARD_CLK_PIN 36
 #define SDCARD_MISO_PIN 37
 #define SDCARD_MOSI_PIN 35
+#define UART_RX_PIN 44
+#define UART_TX_PIN 43
+#define UART_BAUD 9600
 #endif
 
 #include <algorithm>
@@ -32,6 +35,22 @@ void digitalWrite(uint8_t, int) {}
 #include "../../src/Shells/HelpShell.cpp"
 #include "../../src/Controllers/LoRaController.cpp"
 #include "../Controllers/test_LoRaController.cpp"
+namespace tbeam_gnss_fake {
+bool enableResult = true, disableResult = true;
+unsigned enableCalls = 0, disableCalls = 0;
+}
+bool TBeamSupreme::setGnssEnabled(bool on) {
+    if (!on) {
+        ++tbeam_gnss_fake::disableCalls;
+        if (tbeam_gnss_fake::disableResult) gnssPowered = false;
+        return tbeam_gnss_fake::disableResult;
+    }
+    ++tbeam_gnss_fake::enableCalls;
+    if (tbeam_gnss_fake::enableResult) gnssPowered = true;
+    else if (tbeam_gnss_fake::disableResult) gnssPowered = false;
+    else gnssPowered = true;
+    return tbeam_gnss_fake::enableResult;
+}
 #include "../../src/Controllers/UartController.cpp"
 #include "../Controllers/test_UartController.cpp"
 #endif
@@ -43,11 +62,18 @@ struct FakePmu {
     bool displayVoltageFails = false, displayEnableFails = false, displayReadbackFails = false;
     bool displayOffFails = false, displayVoltageReadbackFails = false;
     bool radioReadbackFails = false;
+    bool gpsEnableFails = false;
+    bool gpsDisableFails = false;
+    unsigned gpsVoltage = 1800;
     unsigned radioEnableCalls = 0, sdEnableCalls = 0;
     unsigned radioVoltage = 1800, sdVoltage = 1800, displayVoltage = 1800;
 
     bool disableALDO1() { if (displayOffFails) return false; display = false; return true; }
-    bool disableALDO4() { if (offFails) return false; gps = false; return true; }
+    bool disableALDO4() {
+        if (offFails || gpsDisableFails) return false;
+        gps = false;
+        return true;
+    }
     bool disableBLDO2() { header = false; return true; }
     bool disableALDO3() { radio = false; return true; }
     bool disableBLDO1() { sd = false; return true; }
@@ -73,6 +99,9 @@ struct FakePmu {
     unsigned getBLDO1Voltage() { return sdVoltage; }
     bool enableALDO3() { ++radioEnableCalls; radio = true; return true; }
     bool enableBLDO1() { ++sdEnableCalls; sd = !sdEnableFails; return sd; }
+    bool setALDO4Voltage(unsigned mv) { gpsVoltage = mv; return true; }
+    unsigned getALDO4Voltage() { return gpsVoltage; }
+    bool enableALDO4() { gps = !gpsEnableFails; return gps; }
 };
 
 void test_only_exposed_pins_are_available() {
@@ -86,6 +115,39 @@ void test_only_exposed_pins_are_available() {
 #endif
     }
     TEST_ASSERT_FALSE(TBeamSupreme::isExternalPin(-1));
+}
+
+void test_gnss_rail_is_switched_only_on_request() {
+    FakePmu pmu;
+    TBeamSupreme::configurePower(pmu);
+    TEST_ASSERT_FALSE(pmu.gps);
+    TEST_ASSERT_TRUE(TBeamSupreme::setGnssPower(pmu, true));
+    TEST_ASSERT_TRUE(pmu.gps);
+    TEST_ASSERT_EQUAL(3300, pmu.gpsVoltage);
+    TEST_ASSERT_TRUE(TBeamSupreme::setGnssPower(pmu, false));
+    TEST_ASSERT_FALSE(pmu.gps);
+    pmu.gpsEnableFails = true;
+    TEST_ASSERT_FALSE(TBeamSupreme::setGnssPower(pmu, true));
+    TEST_ASSERT_FALSE(pmu.gps);
+    pmu.gpsEnableFails = false;
+    TEST_ASSERT_TRUE(TBeamSupreme::setGnssPower(pmu, true));
+    pmu.gpsDisableFails = true;
+    TEST_ASSERT_FALSE(TBeamSupreme::setGnssPower(pmu, false));
+    TEST_ASSERT_TRUE(pmu.gps);
+}
+
+void test_gnss_uart_pins_stay_protected() {
+    GlobalState state;
+    for (int pin : {6, 7, 8, 9}) {
+        TEST_ASSERT_FALSE(TBeamSupreme::isExternalPin(pin));
+#ifdef DEVICE_TBEAM_SUPREME_S3
+        TEST_ASSERT_TRUE(state.isPinProtected(pin));
+#endif
+    }
+    TEST_ASSERT_TRUE(TBeamSupreme::isGnssUartPin(8));
+    TEST_ASSERT_TRUE(TBeamSupreme::isGnssUartPin(9));
+    TEST_ASSERT_FALSE(TBeamSupreme::isGnssUartPin(7));
+    TEST_ASSERT_EQUAL(7, TBeamSupreme::gnssWakePin);
 }
 
 void test_fixed_onboard_wiring_is_not_generic() {
@@ -336,6 +398,194 @@ void test_uart_file_operations_route_to_internal_sd_on_this_board() {
                                           fixture.sdService.lastMosi, fixture.sdService.lastCs));
     TEST_ASSERT_EQUAL(1, fixture.sdService.endCalls);
 }
+
+void resetGnss() {
+    TBeamSupreme::gnssSelected = false;
+    TBeamSupreme::gnssPowered = false;
+    tbeam_gnss_fake::enableResult = true;
+    tbeam_gnss_fake::disableResult = true;
+    tbeam_gnss_fake::enableCalls = 0;
+    tbeam_gnss_fake::disableCalls = 0;
+}
+
+void configureExternalUart(uart_controller_tests::UartControllerFixture& fixture) {
+    GlobalState::getInstance().setUartRxPin(44);
+    GlobalState::getInstance().setUartTxPin(43);
+    for (int i = 0; i < 7; ++i) fixture.terminalInput.queueLine("");
+    fixture.controller.ensureConfigured();
+}
+
+void test_uart_onboard_gnss_uses_fixed_pins_and_default_baud() {
+    resetGnss();
+    uart_controller_tests::UartControllerFixture fixture;
+    configureExternalUart(fixture);
+    fixture.terminalInput.queueLine("");
+    fixture.controller.handleCommand(TerminalCommand("config", "gnss"));
+    TEST_ASSERT_TRUE(TBeamSupreme::gnssSelected);
+    TEST_ASSERT_TRUE(TBeamSupreme::gnssPowered);
+    const auto& cfg = fixture.uartService.configurations.back();
+    TEST_ASSERT_EQUAL(9, cfg.rx);
+    TEST_ASSERT_EQUAL(8, cfg.tx);
+    TEST_ASSERT_EQUAL(9600, cfg.baud);
+    TEST_ASSERT_FALSE(cfg.inverted);
+    TEST_ASSERT_EQUAL(44, GlobalState::getInstance().getUartRxPin());
+    TEST_ASSERT_EQUAL(43, GlobalState::getInstance().getUartTxPin());
+    TEST_ASSERT_TRUE(fixture.view.contains("UART: using onboard GNSS (RX 9, TX 8, 8N1)."));
+
+    fixture.controller.handleCommand(TerminalCommand("sniff"));
+    TEST_ASSERT_EQUAL(1, fixture.uartSnifferService.textCalls);
+    TEST_ASSERT_FALSE(fixture.view.contains("protected pin"));
+
+    const auto configured = fixture.uartService.configurations.size();
+    fixture.controller.handleCommand(TerminalCommand("swap"));
+    TEST_ASSERT_TRUE(fixture.view.contains("UART Swap: Onboard GNSS pins are fixed."));
+    TEST_ASSERT_EQUAL(44, GlobalState::getInstance().getUartRxPin());
+    TEST_ASSERT_EQUAL(43, GlobalState::getInstance().getUartTxPin());
+    TEST_ASSERT_EQUAL(configured, fixture.uartService.configurations.size());
+
+    fixture.controller.handleCommand(TerminalCommand("emulator"));
+    TEST_ASSERT_TRUE(fixture.view.contains("UART Emulator: Not available with onboard GNSS."));
+    resetGnss();
+}
+
+void test_uart_onboard_gnss_powers_down_on_release_and_back_on_reentry() {
+    resetGnss();
+    uart_controller_tests::UartControllerFixture fixture;
+    configureExternalUart(fixture);
+    fixture.terminalInput.queueLine("38400");
+    fixture.controller.handleCommand(TerminalCommand("config", "gnss"));
+    TEST_ASSERT_EQUAL(38400, fixture.uartService.configurations.back().baud);
+
+    const auto ends = fixture.uartService.endCalls;
+    fixture.controller.ensureReleased();
+    TEST_ASSERT_FALSE(TBeamSupreme::gnssPowered);
+    TEST_ASSERT_TRUE(TBeamSupreme::gnssSelected);
+    TEST_ASSERT_EQUAL(1, tbeam_gnss_fake::disableCalls);
+    TEST_ASSERT_EQUAL(ends + 1, fixture.uartService.endCalls);
+
+    fixture.controller.ensureConfigured();
+    TEST_ASSERT_TRUE(TBeamSupreme::gnssPowered);
+    TEST_ASSERT_EQUAL(2, tbeam_gnss_fake::enableCalls);
+    TEST_ASSERT_EQUAL(9, fixture.uartService.configurations.back().rx);
+    TEST_ASSERT_EQUAL(38400, fixture.uartService.configurations.back().baud);
+
+    fixture.terminalInput.queueLine("");
+    fixture.terminalInput.queueLine("");
+    fixture.terminalInput.queueLine("");
+    fixture.terminalInput.queueLine("");
+    fixture.terminalInput.queueLine("");
+    fixture.terminalInput.queueLine("");
+    fixture.terminalInput.queueLine("");
+    fixture.controller.handleCommand(TerminalCommand("config"));
+    TEST_ASSERT_FALSE(TBeamSupreme::gnssSelected);
+    TEST_ASSERT_FALSE(TBeamSupreme::gnssPowered);
+    TEST_ASSERT_FALSE(TBeamSupreme::isGnssUartPin(fixture.uartService.configurations.back().rx));
+    TEST_ASSERT_FALSE(TBeamSupreme::isGnssUartPin(fixture.uartService.configurations.back().tx));
+    resetGnss();
+}
+
+void test_uart_onboard_gnss_power_failure_falls_back_to_external_pins() {
+    resetGnss();
+    tbeam_gnss_fake::enableResult = false;
+    uart_controller_tests::UartControllerFixture fixture;
+    GlobalState::getInstance().setUartRxPin(44);
+    GlobalState::getInstance().setUartTxPin(43);
+    fixture.controller.handleCommand(TerminalCommand("config", "gnss"));
+    TEST_ASSERT_TRUE(fixture.view.contains("❌ UART onboard GNSS setup failed."));
+    TEST_ASSERT_TRUE(fixture.view.contains("Onboard GNSS power unavailable."));
+    TEST_ASSERT_FALSE(TBeamSupreme::gnssSelected);
+    TEST_ASSERT_FALSE(TBeamSupreme::gnssPowered);
+    TEST_ASSERT_EQUAL(44, fixture.uartService.configurations.back().rx);
+    TEST_ASSERT_EQUAL(43, fixture.uartService.configurations.back().tx);
+    resetGnss();
+}
+
+void test_failed_gnss_enable_and_power_off_keeps_gpio_reserved() {
+    resetGnss();
+    tbeam_gnss_fake::enableResult = false;
+    tbeam_gnss_fake::disableResult = false;
+    uart_controller_tests::UartControllerFixture fixture;
+    GlobalState::getInstance().setUartRxPin(44);
+    GlobalState::getInstance().setUartTxPin(43);
+    fixture.controller.handleCommand(TerminalCommand("config", "gnss"));
+    TEST_ASSERT_TRUE(TBeamSupreme::gnssPowered);
+    TEST_ASSERT_FALSE(TBeamSupreme::gnssSelected);
+    TEST_ASSERT_TRUE(fixture.view.contains("Onboard GNSS power unavailable."));
+    TEST_ASSERT_TRUE(fixture.view.contains("GPIO 8/9 remain reserved."));
+    TEST_ASSERT_EQUAL(0, fixture.uartService.configurations.size());
+    TEST_ASSERT_EQUAL(44, GlobalState::getInstance().getUartRxPin());
+    TEST_ASSERT_EQUAL(43, GlobalState::getInstance().getUartTxPin());
+    resetGnss();
+}
+
+void test_generic_uart_prompt_rejects_gnss_pins() {
+    resetGnss();
+    uart_controller_tests::UartControllerFixture fixture;
+    GlobalState::getInstance().setUartRxPin(44);
+    GlobalState::getInstance().setUartTxPin(43);
+    fixture.terminalInput.queueLine("9");
+    fixture.terminalInput.queueLine("44");
+    fixture.terminalInput.queueLine("8");
+    fixture.terminalInput.queueLine("43");
+    for (int i = 0; i < 6; ++i) fixture.terminalInput.queueLine("");
+    fixture.controller.handleCommand(TerminalCommand("config"));
+    TEST_ASSERT_TRUE(fixture.view.contains("This GPIO is reserved/protected and cannot be used."));
+    TEST_ASSERT_EQUAL(44, fixture.uartService.configurations.back().rx);
+    TEST_ASSERT_EQUAL(43, fixture.uartService.configurations.back().tx);
+    TEST_ASSERT_EQUAL(0, tbeam_gnss_fake::enableCalls);
+}
+
+void test_failed_gnss_power_off_is_reported_and_remains_reserved() {
+    resetGnss();
+    uart_controller_tests::UartControllerFixture fixture;
+    configureExternalUart(fixture);
+    fixture.terminalInput.queueLine("");
+    fixture.controller.handleCommand(TerminalCommand("config", "gnss"));
+    TEST_ASSERT_TRUE(TBeamSupreme::gnssPowered);
+
+    tbeam_gnss_fake::disableResult = false;
+    fixture.controller.ensureReleased();
+    TEST_ASSERT_TRUE(TBeamSupreme::gnssPowered);
+    TEST_ASSERT_TRUE(TBeamSupreme::gnssSelected);
+    TEST_ASSERT_TRUE(fixture.view.contains("Onboard GNSS power could not be disabled. GPIO 8/9 remain reserved."));
+
+    const auto enabled = tbeam_gnss_fake::enableCalls;
+    fixture.controller.ensureConfigured();
+    TEST_ASSERT_EQUAL(enabled, tbeam_gnss_fake::enableCalls);
+    TEST_ASSERT_EQUAL(9, fixture.uartService.configurations.back().rx);
+    TEST_ASSERT_EQUAL(8, fixture.uartService.configurations.back().tx);
+    resetGnss();
+}
+
+void test_generic_uart_config_keeps_external_prompt_sequence() {
+    resetGnss();
+    uart_controller_tests::UartControllerFixture fixture;
+    GlobalState::getInstance().setUartRxPin(44);
+    GlobalState::getInstance().setUartTxPin(43);
+    for (int i = 0; i < 7; ++i) fixture.terminalInput.queueLine("");
+    fixture.controller.handleCommand(TerminalCommand("config"));
+    TEST_ASSERT_EQUAL(44, fixture.uartService.configurations.back().rx);
+    TEST_ASSERT_EQUAL(43, fixture.uartService.configurations.back().tx);
+    TEST_ASSERT_EQUAL(9600, fixture.uartService.configurations.back().baud);
+    TEST_ASSERT_FALSE(fixture.view.contains("Use onboard GNSS?"));
+    TEST_ASSERT_EQUAL(0, tbeam_gnss_fake::enableCalls);
+
+    const std::vector<std::string> prompts = {
+        "RX GPIO number",
+        "TX GPIO number",
+        "Baud rate",
+        "Data bits (5-8)",
+        "Parity (N/E/O)",
+        "Stop bits (1 or 2)",
+        "Inverted?"
+    };
+    size_t cursor = 0;
+    for (const auto& prompt : prompts) {
+        const auto position = fixture.view.output.find(prompt, cursor);
+        TEST_ASSERT_NOT_EQUAL(std::string::npos, position);
+        cursor = position + prompt.size();
+    }
+}
 #endif
 }
 
@@ -343,6 +593,8 @@ void runTBeamSupremeTests() {
     using namespace tbeam_supreme_tests;
     RUN_TEST(test_only_exposed_pins_are_available);
     RUN_TEST(test_fixed_onboard_wiring_is_not_generic);
+    RUN_TEST(test_gnss_rail_is_switched_only_on_request);
+    RUN_TEST(test_gnss_uart_pins_stay_protected);
     RUN_TEST(test_board_profile_and_internal_sd_defaults);
     RUN_TEST(test_successful_power_setup_leaves_unused_rails_off);
     RUN_TEST(test_failed_unused_rail_shutdown_never_enables_consumers);
@@ -359,6 +611,13 @@ void runTBeamSupremeTests() {
     RUN_TEST(test_sd_rejects_reserved_pins_and_usb_storage_ownership);
     RUN_TEST(test_radio_reset_uses_selected_band_and_reentry_preserves_runtime_frequency);
     RUN_TEST(test_uart_file_operations_route_to_internal_sd_on_this_board);
+    RUN_TEST(test_uart_onboard_gnss_uses_fixed_pins_and_default_baud);
+    RUN_TEST(test_uart_onboard_gnss_powers_down_on_release_and_back_on_reentry);
+    RUN_TEST(test_uart_onboard_gnss_power_failure_falls_back_to_external_pins);
+    RUN_TEST(test_failed_gnss_enable_and_power_off_keeps_gpio_reserved);
+    RUN_TEST(test_generic_uart_prompt_rejects_gnss_pins);
+    RUN_TEST(test_failed_gnss_power_off_is_reported_and_remains_reserved);
+    RUN_TEST(test_generic_uart_config_keeps_external_prompt_sequence);
 #endif
 }
 
